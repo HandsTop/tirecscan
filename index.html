@@ -1,479 +1,219 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Учёт шин — сканер</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tire Inventory</title>
+<script src="https://unpkg.com/html5-qrcode"></script>
 
-  <!-- Сканер (работает в Safari iOS) -->
-  <script src="https://unpkg.com/html5-qrcode"></script>
-
-  <style>
-    body{
-      margin:0;background:#0e1016;color:#e6e6e6;
-      font-family:-apple-system,system-ui,Arial;
-    }
-    header{
-      padding:14px 16px;background:#12141a;font-weight:600;
-      font-size:16px;border-bottom:1px solid #222;
-    }
-    main{padding:16px;display:grid;gap:14px;}
-    .card{
-      background:#12141a;border:1px solid #23262f;border-radius:14px;padding:14px;
-    }
-    label{font-size:12px;opacity:.8;display:block;margin-top:10px;}
-    input, select, button{
-      width:100%;box-sizing:border-box;
-      font-size:16px;border-radius:10px;border:1px solid #2a2f3a;
-      background:#0e1016;color:#fff;
-      padding:12px;margin-top:6px;
-    }
-    select{padding:12px;}
-    button{border:none;margin-top:12px;border-radius:12px;}
-    .primary{background:#1b3cff;color:#fff;}
-    .danger{background:#5a1a1a;color:#fff;}
-    .muted{font-size:13px;opacity:.8;margin-top:8px;line-height:1.35;}
-    #reader{
-      width:100%;border-radius:14px;overflow:hidden;background:#000;border:1px solid #23262f;
-      margin-top:12px;
-    }
-
-    /* Два поля в одну линию */
-    .row{
-      display:flex;
-      gap:10px;
-      align-items:flex-start;
-      flex-wrap:nowrap;
-    }
-    .row > .col{ flex:1; min-width:0; }
-    .compact input{ padding:10px; font-size:15px; }
-
-    /* Список */
-    .toolbar{display:grid;gap:10px;margin-top:10px;}
-    .item{
-      border:1px solid #2a2f3a;border-radius:12px;padding:10px;margin-top:10px;
-      background:#0e1016;
-    }
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;}
-    .badge{
-      display:inline-block;padding:3px 8px;border-radius:999px;
-      border:1px solid #2a2f3a;background:#12141a;font-size:12px;opacity:.95;
-      margin-right:6px;margin-top:6px;
-    }
-    details.group{
-      border:1px solid #23262f;border-radius:12px;background:#0e1016;margin-top:10px;
-      overflow:hidden;
-    }
-    details.group > summary{
-      cursor:pointer; list-style:none;
-      padding:10px 12px; font-weight:600; background:#12141a;
-      border-bottom:1px solid #23262f;
-    }
-    details.group > summary::-webkit-details-marker{display:none;}
-    .groupBody{padding:10px 12px;}
-    .small{font-size:13px;opacity:.9;line-height:1.35;}
-  </style>
+<style>
+body{margin:0;background:#0e1016;color:#e6e6e6;font-family:-apple-system,system-ui}
+header{padding:14px 16px;background:#12141a;border-bottom:1px solid #222}
+main{padding:16px;display:grid;gap:14px}
+.card{background:#12141a;border:1px solid #23262f;border-radius:14px;padding:14px}
+label{font-size:12px;opacity:.85}
+input,select,button{width:100%;box-sizing:border-box;padding:12px;margin-top:6px;border-radius:10px;border:1px solid #2a2f3a;background:#0e1016;color:#fff;font-size:16px}
+button.primary{background:#1b3cff;border:none}
+button.danger{background:#5a1a1a;border:none}
+button:disabled{opacity:.4}
+.row{display:flex;gap:10px}
+.col{flex:1}
+#reader{margin-top:10px;border-radius:14px;overflow:hidden;background:#000}
+.lock{opacity:.4;pointer-events:none}
+.badge{display:inline-block;padding:4px 8px;border-radius:999px;border:1px solid #2a2f3a;font-size:12px;margin-right:6px}
+.item{border:1px solid #2a2f3a;border-radius:12px;padding:10px;margin-top:10px}
+.muted{font-size:13px;opacity:.8;margin-top:6px}
+</style>
 </head>
 
 <body>
-<header>Учёт шин — сканер камерой</header>
-
-<main>
-
-  <!-- СКАНЕР -->
-  <section class="card">
-    <div class="row">
-      <div class="col">
-        <button id="start" class="primary" style="margin-top:0">Включить камеру</button>
-      </div>
-      <div class="col">
-        <button id="stop" class="danger" style="margin-top:0" disabled>Выключить</button>
-      </div>
+<header>
+  <div class="row">
+    <div class="col"><b id="title"></b></div>
+    <div class="col">
+      <select id="lang"></select>
     </div>
+  </div>
+  <label id="userLabel"></label>
+  <input id="username">
+  <button id="confirmUser" class="primary"></button>
+</header>
 
-    <div id="reader"></div>
+<main id="app" class="lock">
 
-    <div id="status" class="muted">Камера выключена</div>
-    <div class="muted">
-      После успешного скана камера выключится, форма очистится (кроме EAN — он подставится).
+<section class="card">
+  <button id="start" class="primary"></button>
+  <button id="stop" class="danger" disabled></button>
+  <div id="reader"></div>
+  <div id="status" class="muted"></div>
+</section>
+
+<section class="card">
+  <label id="lEan"></label>
+  <input id="ean">
+
+  <div class="row">
+    <div class="col">
+      <label id="lMaker"></label>
+      <input id="maker">
     </div>
-  </section>
-
-  <!-- ФОРМА -->
-  <section class="card">
-    <label>Штрих-код (EAN)</label>
-    <input id="ean" placeholder="сканируется автоматически" inputmode="numeric" />
-
-    <div class="row compact" style="margin-top:10px;">
-      <div class="col">
-        <label style="margin-top:0;">Марка</label>
-        <input id="maker" placeholder="например Nexen" />
-      </div>
-      <div class="col">
-        <label style="margin-top:0;">Модель</label>
-        <input id="tireModel" placeholder="например WinGuard WT1" />
-      </div>
+    <div class="col">
+      <label id="lModel"></label>
+      <input id="model">
     </div>
+  </div>
 
-    <label>Размер</label>
-    <input id="size" placeholder="например 195/65 R16 104/102T" />
+  <label id="lSize"></label>
+  <input id="size">
 
-    <div class="row compact" style="margin-top:10px;">
-      <div class="col">
-        <label style="margin-top:0;">Локация</label>
-        <input id="loc" placeholder="например 216" />
-      </div>
-      <div class="col">
-        <label style="margin-top:0;">Кол-во</label>
-        <input id="qty" type="number" placeholder="например 34" min="0" />
-      </div>
+  <div class="row">
+    <div class="col">
+      <label id="lLoc"></label>
+      <input id="loc">
     </div>
-
-    <button id="save" class="primary">Сохранить</button>
-    <button id="clear" class="danger" style="margin-top:10px">Очистить поля</button>
-  </section>
-
-  <!-- СПИСОК -->
-  <section class="card">
-    <div class="small"><b>Список шин</b></div>
-
-    <div class="toolbar">
-      <input id="search" placeholder="Поиск: EAN, марка, модель, размер, локация" />
-
-      <div class="row">
-        <div class="col">
-          <label style="margin-top:0;">Группировка</label>
-          <select id="groupBy">
-            <option value="location">По локации</option>
-            <option value="maker">По марке</option>
-            <option value="none">Без группировки</option>
-          </select>
-        </div>
-        <div class="col">
-          <label style="margin-top:0;">Сортировка</label>
-          <select id="sortBy">
-            <option value="updated_desc">Сначала новые</option>
-            <option value="qty_desc">Кол-во ↓</option>
-            <option value="loc_asc">Локация A→Z</option>
-            <option value="maker_asc">Марка A→Z</option>
-            <option value="model_asc">Модель A→Z</option>
-          </select>
-        </div>
-      </div>
+    <div class="col">
+      <label id="lQty"></label>
+      <input id="qty" type="number">
     </div>
+  </div>
 
-    <div id="stats" class="muted" style="margin-top:10px;"></div>
-    <div id="list"></div>
-  </section>
+  <button id="save" class="primary"></button>
+</section>
+
+<section class="card">
+  <div id="list"></div>
+</section>
 
 </main>
 
 <script>
-/* ===== ХРАНЕНИЕ ===== */
-const KEY = "tires_db_v3";
-let db = loadDB();
+/* ===== CONFIG ===== */
+const USER_KEY="tires_user_fixed";
+const LANG_KEY="tires_lang";
+const DB_KEY="tires_db_final";
 
-function loadDB() {
-  try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { return []; }
+/* ===== I18N ===== */
+const I={
+ru:{
+title:"Учёт шин",
+user:"Имя пользователя",
+confirm:"Подтвердить имя",
+ean:"Штрих-код (EAN)",
+maker:"Марка",
+model:"Модель",
+size:"Размер (например 195/65 R16 104/102T)",
+loc:"Локация (например 216)",
+qty:"Количество",
+start:"Включить камеру",
+stop:"Выключить",
+save:"Сохранить",
+statusOff:"Камера выключена"
+},
+de:{
+title:"Reifenverwaltung",
+user:"Benutzername",
+confirm:"Name bestätigen",
+ean:"Barcode (EAN)",
+maker:"Hersteller",
+model:"Modell",
+size:"Größe (z. B. 195/65 R16 104/102T)",
+loc:"Lagerplatz (z. B. 216)",
+qty:"Menge",
+start:"Kamera starten",
+stop:"Stop",
+save:"Speichern",
+statusOff:"Kamera aus"
+},
+lv:{
+title:"Riepu uzskaite",
+user:"Lietotājvārds",
+confirm:"Apstiprināt vārdu",
+ean:"Svītrkods (EAN)",
+maker:"Ražotājs",
+model:"Modelis",
+size:"Izmērs (piem. 195/65 R16 104/102T)",
+loc:"Vieta (piem. 216)",
+qty:"Daudzums",
+start:"Ieslēgt kameru",
+stop:"Izslēgt",
+save:"Saglabāt",
+statusOff:"Kamera izslēgta"
 }
-function saveDB() {
-  localStorage.setItem(KEY, JSON.stringify(db));
-  render();
-}
+};
+
+/* ===== STATE ===== */
+let lang=localStorage.getItem(LANG_KEY)||"ru";
+let user=localStorage.getItem(USER_KEY)||"";
 
 /* ===== UI ===== */
-const ean = document.getElementById("ean");
-const maker = document.getElementById("maker");
-const tireModel = document.getElementById("tireModel");
-const size = document.getElementById("size");
-const loc = document.getElementById("loc");
-const qty = document.getElementById("qty");
+const $=id=>document.getElementById(id);
+$("lang").innerHTML=Object.keys(I).map(l=>`<option value="${l}">${l.toUpperCase()}</option>`).join("");
+$("lang").value=lang;
 
-const list = document.getElementById("list");
-const stats = document.getElementById("stats");
-const status = document.getElementById("status");
-
-const search = document.getElementById("search");
-const groupBy = document.getElementById("groupBy");
-const sortBy = document.getElementById("sortBy");
-
-function normalizeEAN(s){ return String(s||"").replace(/\s+/g,"").trim(); }
-function now(){ return Date.now(); }
-
-function clearForm({ keepEAN=false } = {}) {
-  const currentEAN = ean.value;
-  ean.value = keepEAN ? currentEAN : "";
-  maker.value = "";
-  tireModel.value = "";
-  size.value = "";
-  loc.value = "";
-  qty.value = "";
+function apply(){
+const t=I[lang];
+$("title").textContent=t.title;
+$("userLabel").textContent=t.user;
+$("confirmUser").textContent=t.confirm;
+$("lEan").textContent=t.ean;
+$("lMaker").textContent=t.maker;
+$("lModel").textContent=t.model;
+$("lSize").textContent=t.size;
+$("lLoc").textContent=t.loc;
+$("lQty").textContent=t.qty;
+$("start").textContent=t.start;
+$("stop").textContent=t.stop;
+$("save").textContent=t.save;
+$("status").textContent=t.statusOff;
 }
 
-document.getElementById("clear").onclick = () => {
-  clearForm({ keepEAN:false });
-  ean.focus();
+$("lang").onchange=()=>{lang=$("lang").value;localStorage.setItem(LANG_KEY,lang);apply()};
+apply();
+
+/* ===== USER LOCK ===== */
+if(user){
+$("username").value=user;
+$("username").disabled=true;
+$("confirmUser").disabled=true;
+$("app").classList.remove("lock");
+}
+
+$("confirmUser").onclick=()=>{
+const v=$("username").value.trim();
+if(!v) return alert("Введите имя");
+localStorage.setItem(USER_KEY,v);
+location.reload();
 };
 
-document.getElementById("save").onclick = () => {
-  const code = normalizeEAN(ean.value);
-  if (!code) return alert("Нет EAN (штрих-кода)");
+/* ===== DB ===== */
+let db=JSON.parse(localStorage.getItem(DB_KEY)||"[]");
 
-  const q = Number(qty.value || 0);
-  if (!Number.isFinite(q) || q < 0) return alert("Кол-во должно быть числом (0 или больше).");
-
-  const item = {
-    ean: code,
-    maker: String(maker.value || "").trim(),
-    tireModel: String(tireModel.value || "").trim(),
-    size: String(size.value || "").trim(),
-    loc: String(loc.value || "").trim(),
-    qty: q,
-    createdAt: now(),
-    updatedAt: now()
-  };
-
-  const i = db.findIndex(x => x.ean === code);
-  if (i >= 0) {
-    item.createdAt = Number(db[i].createdAt || item.createdAt);
-    db[i] = item;
-  } else {
-    db.push(item);
-  }
-
-  saveDB();
-
-  // После сохранения — очистить форму для следующей записи
-  clearForm({ keepEAN:false });
-  ean.focus();
+/* ===== SAVE ===== */
+$("save").onclick=()=>{
+db.push({
+ean:$("ean").value,
+maker:$("maker").value,
+model:$("model").value,
+size:$("size").value,
+loc:$("loc").value,
+qty:$("qty").value,
+user,
+time:new Date().toLocaleString()
+});
+localStorage.setItem(DB_KEY,JSON.stringify(db));
+render();
 };
 
-function fillForm(it){
-  ean.value = it.ean || "";
-  maker.value = it.maker || "";
-  tireModel.value = it.tireModel || "";
-  size.value = it.size || "";
-  loc.value = it.loc || "";
-  qty.value = String(it.qty ?? "");
-  window.scrollTo({top:0,behavior:"smooth"});
-}
-
-/* ===== СКАНЕР (html5-qrcode) ===== */
-let scanner = null;
-let last = "";
-let isRunning = false;
-
-async function stopCamera() {
-  if (scanner && isRunning) {
-    try { await scanner.stop(); } catch {}
-    try { await scanner.clear(); } catch {}
-  }
-  isRunning = false;
-  document.getElementById("start").disabled = false;
-  document.getElementById("stop").disabled = true;
-  status.textContent = "Камера выключена";
-}
-
-document.getElementById("start").onclick = async () => {
-  if (!window.isSecureContext) {
-    alert("Нужно HTTPS (GitHub Pages). Открой страницу по ссылке https://...");
-    return;
-  }
-
-  // Перед новым сканом очищаем форму, чтобы сразу вводить новую позицию
-  clearForm({ keepEAN:false });
-
-  try {
-    scanner = new Html5Qrcode("reader");
-    last = "";
-    isRunning = true;
-
-    document.getElementById("start").disabled = true;
-    document.getElementById("stop").disabled = false;
-    status.textContent = "Камера включена. Наведи на штрих-код…";
-
-    await scanner.start(
-      { facingMode: "environment" },
-      {
-        fps: 12,
-        qrbox: { width: 260, height: 160 },
-        experimentalFeatures: { useBarCodeDetectorIfSupported: false }
-      },
-      async (text) => {
-        const value = normalizeEAN(text);
-        if (!value) return;
-        if (value === last) return;
-        last = value;
-
-        // Подставляем EAN и чистим остальные поля (чтобы вводить заново)
-        ean.value = value;
-        maker.value = "";
-        tireModel.value = "";
-        size.value = "";
-        loc.value = "";
-        qty.value = "";
-
-        status.textContent = "Найдено: " + value + " (камера выключается)";
-        await stopCamera();
-        maker.focus();
-      },
-      () => {}
-    );
-  } catch (e) {
-    console.error(e);
-    alert("Не удалось включить камеру. Проверь разрешение: Настройки → Safari → Камера.");
-    await stopCamera();
-  }
-};
-
-document.getElementById("stop").onclick = async () => {
-  await stopCamera();
-};
-
-/* ===== ФИЛЬТР + СОРТ ===== */
-function compare(a,b,mode){
-  const sa = (x)=>String(x||"");
-  if (mode==="updated_desc") return (b.updatedAt||0)-(a.updatedAt||0);
-  if (mode==="qty_desc") return (b.qty||0)-(a.qty||0);
-  if (mode==="loc_asc") return sa(a.loc).localeCompare(sa(b.loc),"ru");
-  if (mode==="maker_asc") return sa(a.maker).localeCompare(sa(b.maker),"ru");
-  if (mode==="model_asc") return sa(a.tireModel).localeCompare(sa(b.tireModel),"ru");
-  return 0;
-}
-
-function filterItems(items){
-  const q = String(search.value||"").trim().toLowerCase();
-  if (!q) return items;
-  return items.filter(x =>
-    String(x.ean||"").toLowerCase().includes(q) ||
-    String(x.maker||"").toLowerCase().includes(q) ||
-    String(x.tireModel||"").toLowerCase().includes(q) ||
-    String(x.size||"").toLowerCase().includes(q) ||
-    String(x.loc||"").toLowerCase().includes(q)
-  );
-}
-
-function groupItems(items, mode){
-  if (mode==="none") return { "Все": items };
-
-  const map = new Map();
-  for (const it of items) {
-    const key = (mode==="maker")
-      ? (String(it.maker||"").trim() || "Без марки")
-      : (String(it.loc||"").trim() || "Без локации");
-    if (!map.has(key)) map.set(key, []);
-    map.get(key).push(it);
-  }
-
-  const keys = Array.from(map.keys()).sort((a,b)=>String(a).localeCompare(String(b),"ru"));
-  const out = {};
-  for (const k of keys) out[k] = map.get(k);
-  return out;
-}
-
-function itemCard(it){
-  const div = document.createElement("div");
-  div.className = "item";
-
-  const title = document.createElement("div");
-  const left = [it.maker, it.tireModel].filter(Boolean).join(" ");
-  title.innerHTML = `<b>${left || "—"}</b>`;
-  div.appendChild(title);
-
-  const sub = document.createElement("div");
-  sub.className = "small";
-  sub.style.marginTop = "6px";
-  sub.textContent = it.size ? `Размер: ${it.size}` : "Размер: —";
-  div.appendChild(sub);
-
-  const code = document.createElement("div");
-  code.className = "mono";
-  code.style.marginTop = "6px";
-  code.textContent = it.ean;
-  div.appendChild(code);
-
-  const meta = document.createElement("div");
-  meta.style.marginTop = "8px";
-  meta.innerHTML = `
-    <span class="badge">Локация: <b>${it.loc || "-"}</b></span>
-    <span class="badge">Кол-во: <b>${Number.isFinite(it.qty) ? it.qty : 0}</b></span>
-  `;
-  div.appendChild(meta);
-
-  const btnRow = document.createElement("div");
-  btnRow.className = "row";
-  btnRow.style.marginTop = "10px";
-
-  const openBtn = document.createElement("button");
-  openBtn.className = "primary";
-  openBtn.style.marginTop = "0";
-  openBtn.textContent = "Открыть";
-  openBtn.onclick = () => fillForm(it);
-
-  const delBtn = document.createElement("button");
-  delBtn.className = "danger";
-  delBtn.style.marginTop = "0";
-  delBtn.textContent = "Удалить";
-  delBtn.onclick = () => {
-    if (!confirm("Удалить запись?")) return;
-    db = db.filter(x => x.ean !== it.ean);
-    saveDB();
-  };
-
-  const c1 = document.createElement("div"); c1.className="col"; c1.appendChild(openBtn);
-  const c2 = document.createElement("div"); c2.className="col"; c2.appendChild(delBtn);
-  btnRow.appendChild(c1); btnRow.appendChild(c2);
-
-  div.appendChild(btnRow);
-  return div;
-}
-
-/* ===== РЕНДЕР ===== */
 function render(){
-  const filtered = filterItems(db.slice());
-  filtered.sort((a,b)=>compare(a,b,sortBy.value));
-
-  stats.textContent = `Всего записей: ${db.length}` + (search.value.trim() ? ` • Показано: ${filtered.length}` : "");
-
-  list.innerHTML = "";
-
-  if (filtered.length === 0) {
-    const e = document.createElement("div");
-    e.className = "muted";
-    e.textContent = "Ничего не найдено.";
-    list.appendChild(e);
-    return;
-  }
-
-  const grouped = groupItems(filtered, groupBy.value);
-
-  if (groupBy.value === "none") {
-    for (const it of grouped["Все"]) list.appendChild(itemCard(it));
-    return;
-  }
-
-  for (const [gname, items] of Object.entries(grouped)) {
-    const det = document.createElement("details");
-    det.className = "group";
-    det.open = true;
-
-    const sum = document.createElement("summary");
-    sum.textContent = `${gname} • ${items.length} шт.`;
-    det.appendChild(sum);
-
-    const body = document.createElement("div");
-    body.className = "groupBody";
-    for (const it of items) body.appendChild(itemCard(it));
-
-    det.appendChild(body);
-    list.appendChild(det);
-  }
+$("list").innerHTML=db.map(i=>`
+<div class="item">
+<b>${i.maker} ${i.model}</b><br>
+<span class="badge">${i.size}</span>
+<span class="badge">${i.loc}</span>
+<span class="badge">${i.qty}</span>
+<div class="muted">${i.ean} • ${i.user} • ${i.time}</div>
+</div>`).join("");
 }
-
-search.addEventListener("input", render);
-groupBy.addEventListener("change", render);
-sortBy.addEventListener("change", render);
-
 render();
 </script>
 </body>
