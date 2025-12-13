@@ -38,26 +38,18 @@
       margin-top:12px;
     }
 
-    /* ВАЖНО: делаем поля в одну линию */
+    /* Два поля в одну линию */
     .row{
       display:flex;
       gap:10px;
       align-items:flex-start;
-      flex-wrap:nowrap;   /* не переносить на новую строку */
+      flex-wrap:nowrap;
     }
-    .row > .col{
-      flex:1;
-      min-width:0;        /* чтобы инпуты не выталкивали друг друга */
-    }
-    /* Чуть “компактнее” для этих двух полей */
-    .compact input{
-      padding:10px;
-      font-size:15px;
-    }
+    .row > .col{ flex:1; min-width:0; }
+    .compact input{ padding:10px; font-size:15px; }
 
     /* Список */
     .toolbar{display:grid;gap:10px;margin-top:10px;}
-    .toolbar .row{margin-top:0;}
     .item{
       border:1px solid #2a2f3a;border-radius:12px;padding:10px;margin-top:10px;
       background:#0e1016;
@@ -103,49 +95,57 @@
 
     <div id="status" class="muted">Камера выключена</div>
     <div class="muted">
-      Подсказка: при успешном скане камера автоматически выключится (чтобы не сканировала повторно).
+      После успешного скана камера выключится, форма очистится (кроме EAN — он подставится).
     </div>
   </section>
 
   <!-- ФОРМА -->
   <section class="card">
-    <label>Штрих-код</label>
-    <input id="barcode" placeholder="сканируется автоматически" inputmode="numeric" />
-
-    <label>Производитель</label>
-    <input id="maker" placeholder="например Nexen" />
+    <label>Штрих-код (EAN)</label>
+    <input id="ean" placeholder="сканируется автоматически" inputmode="numeric" />
 
     <div class="row compact" style="margin-top:10px;">
       <div class="col">
-        <label style="margin-top:0;">Модель / Размер</label>
-        <input id="model" placeholder="например 195/65 R16 104/102T" />
+        <label style="margin-top:0;">Марка</label>
+        <input id="maker" placeholder="например Nexen" />
       </div>
+      <div class="col">
+        <label style="margin-top:0;">Модель</label>
+        <input id="tireModel" placeholder="например WinGuard WT1" />
+      </div>
+    </div>
+
+    <label>Размер</label>
+    <input id="size" placeholder="например 195/65 R16 104/102T" />
+
+    <div class="row compact" style="margin-top:10px;">
       <div class="col">
         <label style="margin-top:0;">Локация</label>
         <input id="loc" placeholder="например 216" />
       </div>
+      <div class="col">
+        <label style="margin-top:0;">Кол-во</label>
+        <input id="qty" type="number" placeholder="например 34" min="0" />
+      </div>
     </div>
-
-    <label>Кол-во</label>
-    <input id="qty" type="number" placeholder="например 34" min="0" />
 
     <button id="save" class="primary">Сохранить</button>
     <button id="clear" class="danger" style="margin-top:10px">Очистить поля</button>
   </section>
 
-  <!-- СПИСОК + СОРТИРОВКИ -->
+  <!-- СПИСОК -->
   <section class="card">
     <div class="small"><b>Список шин</b></div>
 
     <div class="toolbar">
-      <input id="search" placeholder="Поиск: штрих-код, производитель, модель, локация" />
+      <input id="search" placeholder="Поиск: EAN, марка, модель, размер, локация" />
 
       <div class="row">
         <div class="col">
           <label style="margin-top:0;">Группировка</label>
           <select id="groupBy">
             <option value="location">По локации</option>
-            <option value="maker">По производителю</option>
+            <option value="maker">По марке</option>
             <option value="none">Без группировки</option>
           </select>
         </div>
@@ -155,7 +155,7 @@
             <option value="updated_desc">Сначала новые</option>
             <option value="qty_desc">Кол-во ↓</option>
             <option value="loc_asc">Локация A→Z</option>
-            <option value="maker_asc">Производитель A→Z</option>
+            <option value="maker_asc">Марка A→Z</option>
             <option value="model_asc">Модель A→Z</option>
           </select>
         </div>
@@ -170,45 +170,25 @@
 
 <script>
 /* ===== ХРАНЕНИЕ ===== */
-const KEY = "tires_db_v2"; // новая версия (с maker)
+const KEY = "tires_db_v3";
 let db = loadDB();
 
 function loadDB() {
-  // миграция: если у кого-то осталось старое tires_db
-  const old = localStorage.getItem("tires_db");
-  const cur = localStorage.getItem(KEY);
-
-  if (!cur && old) {
-    try {
-      const items = JSON.parse(old || "[]");
-      const migrated = (Array.isArray(items) ? items : []).map(x => ({
-        barcode: String(x.barcode || "").trim(),
-        maker: "",
-        model: String(x.model || "").trim(),
-        loc: String(x.loc || "").trim(),
-        qty: Number(x.qty || 0),
-        createdAt: x.time ? Number(x.time) : Date.now(),
-        updatedAt: x.time ? Number(x.time) : Date.now(),
-      })).filter(x => x.barcode);
-      localStorage.setItem(KEY, JSON.stringify(migrated));
-      return migrated;
-    } catch { /* ignore */ }
-  }
-
-  try { return JSON.parse(cur || "[]"); } catch { return []; }
+  try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { return []; }
 }
-
 function saveDB() {
   localStorage.setItem(KEY, JSON.stringify(db));
   render();
 }
 
 /* ===== UI ===== */
-const barcode = document.getElementById("barcode");
+const ean = document.getElementById("ean");
 const maker = document.getElementById("maker");
-const model = document.getElementById("model");
+const tireModel = document.getElementById("tireModel");
+const size = document.getElementById("size");
 const loc = document.getElementById("loc");
 const qty = document.getElementById("qty");
+
 const list = document.getElementById("list");
 const stats = document.getElementById("stats");
 const status = document.getElementById("status");
@@ -217,26 +197,44 @@ const search = document.getElementById("search");
 const groupBy = document.getElementById("groupBy");
 const sortBy = document.getElementById("sortBy");
 
-function normalizeBarcode(s){ return String(s||"").replace(/\s+/g,"").trim(); }
+function normalizeEAN(s){ return String(s||"").replace(/\s+/g,"").trim(); }
 function now(){ return Date.now(); }
 
+function clearForm({ keepEAN=false } = {}) {
+  const currentEAN = ean.value;
+  ean.value = keepEAN ? currentEAN : "";
+  maker.value = "";
+  tireModel.value = "";
+  size.value = "";
+  loc.value = "";
+  qty.value = "";
+}
+
+document.getElementById("clear").onclick = () => {
+  clearForm({ keepEAN:false });
+  ean.focus();
+};
+
 document.getElementById("save").onclick = () => {
-  const bc = normalizeBarcode(barcode.value);
-  if (!bc) return alert("Нет штрих-кода");
+  const code = normalizeEAN(ean.value);
+  if (!code) return alert("Нет EAN (штрих-кода)");
+
+  const q = Number(qty.value || 0);
+  if (!Number.isFinite(q) || q < 0) return alert("Кол-во должно быть числом (0 или больше).");
 
   const item = {
-    barcode: bc,
+    ean: code,
     maker: String(maker.value || "").trim(),
-    model: String(model.value || "").trim(),
+    tireModel: String(tireModel.value || "").trim(),
+    size: String(size.value || "").trim(),
     loc: String(loc.value || "").trim(),
-    qty: Number(qty.value || 0),
+    qty: q,
     createdAt: now(),
     updatedAt: now()
   };
 
-  const i = db.findIndex(x => x.barcode === bc);
+  const i = db.findIndex(x => x.ean === code);
   if (i >= 0) {
-    // сохраняем createdAt старый
     item.createdAt = Number(db[i].createdAt || item.createdAt);
     db[i] = item;
   } else {
@@ -244,21 +242,17 @@ document.getElementById("save").onclick = () => {
   }
 
   saveDB();
-};
 
-document.getElementById("clear").onclick = () => {
-  barcode.value = "";
-  maker.value = "";
-  model.value = "";
-  loc.value = "";
-  qty.value = "";
-  barcode.focus();
+  // После сохранения — очистить форму для следующей записи
+  clearForm({ keepEAN:false });
+  ean.focus();
 };
 
 function fillForm(it){
-  barcode.value = it.barcode || "";
+  ean.value = it.ean || "";
   maker.value = it.maker || "";
-  model.value = it.model || "";
+  tireModel.value = it.tireModel || "";
+  size.value = it.size || "";
   loc.value = it.loc || "";
   qty.value = String(it.qty ?? "");
   window.scrollTo({top:0,behavior:"smooth"});
@@ -269,8 +263,7 @@ let scanner = null;
 let last = "";
 let isRunning = false;
 
-async function stopCameraAuto() {
-  // общая функция остановки (в т.ч. для авто-стопа после скана)
+async function stopCamera() {
   if (scanner && isRunning) {
     try { await scanner.stop(); } catch {}
     try { await scanner.clear(); } catch {}
@@ -286,6 +279,9 @@ document.getElementById("start").onclick = async () => {
     alert("Нужно HTTPS (GitHub Pages). Открой страницу по ссылке https://...");
     return;
   }
+
+  // Перед новым сканом очищаем форму, чтобы сразу вводить новую позицию
+  clearForm({ keepEAN:false });
 
   try {
     scanner = new Html5Qrcode("reader");
@@ -304,15 +300,21 @@ document.getElementById("start").onclick = async () => {
         experimentalFeatures: { useBarCodeDetectorIfSupported: false }
       },
       async (text) => {
-        const value = normalizeBarcode(text);
+        const value = normalizeEAN(text);
         if (!value) return;
-        if (value === last) return; // защита от дублей
+        if (value === last) return;
         last = value;
 
-        barcode.value = value;
+        // Подставляем EAN и чистим остальные поля (чтобы вводить заново)
+        ean.value = value;
+        maker.value = "";
+        tireModel.value = "";
+        size.value = "";
+        loc.value = "";
+        qty.value = "";
+
         status.textContent = "Найдено: " + value + " (камера выключается)";
-        // Автовыключение камеры после успешного скана
-        await stopCameraAuto();
+        await stopCamera();
         maker.focus();
       },
       () => {}
@@ -320,12 +322,12 @@ document.getElementById("start").onclick = async () => {
   } catch (e) {
     console.error(e);
     alert("Не удалось включить камеру. Проверь разрешение: Настройки → Safari → Камера.");
-    await stopCameraAuto();
+    await stopCamera();
   }
 };
 
 document.getElementById("stop").onclick = async () => {
-  await stopCameraAuto();
+  await stopCamera();
 };
 
 /* ===== ФИЛЬТР + СОРТ ===== */
@@ -335,7 +337,7 @@ function compare(a,b,mode){
   if (mode==="qty_desc") return (b.qty||0)-(a.qty||0);
   if (mode==="loc_asc") return sa(a.loc).localeCompare(sa(b.loc),"ru");
   if (mode==="maker_asc") return sa(a.maker).localeCompare(sa(b.maker),"ru");
-  if (mode==="model_asc") return sa(a.model).localeCompare(sa(b.model),"ru");
+  if (mode==="model_asc") return sa(a.tireModel).localeCompare(sa(b.tireModel),"ru");
   return 0;
 }
 
@@ -343,9 +345,10 @@ function filterItems(items){
   const q = String(search.value||"").trim().toLowerCase();
   if (!q) return items;
   return items.filter(x =>
-    String(x.barcode||"").toLowerCase().includes(q) ||
+    String(x.ean||"").toLowerCase().includes(q) ||
     String(x.maker||"").toLowerCase().includes(q) ||
-    String(x.model||"").toLowerCase().includes(q) ||
+    String(x.tireModel||"").toLowerCase().includes(q) ||
+    String(x.size||"").toLowerCase().includes(q) ||
     String(x.loc||"").toLowerCase().includes(q)
   );
 }
@@ -356,14 +359,12 @@ function groupItems(items, mode){
   const map = new Map();
   for (const it of items) {
     const key = (mode==="maker")
-      ? (String(it.maker||"").trim() || "Без производителя")
+      ? (String(it.maker||"").trim() || "Без марки")
       : (String(it.loc||"").trim() || "Без локации");
-
     if (!map.has(key)) map.set(key, []);
     map.get(key).push(it);
   }
 
-  // сортировка ключей групп
   const keys = Array.from(map.keys()).sort((a,b)=>String(a).localeCompare(String(b),"ru"));
   const out = {};
   for (const k of keys) out[k] = map.get(k);
@@ -375,14 +376,21 @@ function itemCard(it){
   div.className = "item";
 
   const title = document.createElement("div");
-  title.innerHTML = `<b>${(it.maker||"—")} ${(it.model||"")}</b>`;
+  const left = [it.maker, it.tireModel].filter(Boolean).join(" ");
+  title.innerHTML = `<b>${left || "—"}</b>`;
   div.appendChild(title);
 
-  const bc = document.createElement("div");
-  bc.className = "mono";
-  bc.style.marginTop = "6px";
-  bc.textContent = it.barcode;
-  div.appendChild(bc);
+  const sub = document.createElement("div");
+  sub.className = "small";
+  sub.style.marginTop = "6px";
+  sub.textContent = it.size ? `Размер: ${it.size}` : "Размер: —";
+  div.appendChild(sub);
+
+  const code = document.createElement("div");
+  code.className = "mono";
+  code.style.marginTop = "6px";
+  code.textContent = it.ean;
+  div.appendChild(code);
 
   const meta = document.createElement("div");
   meta.style.marginTop = "8px";
@@ -408,7 +416,7 @@ function itemCard(it){
   delBtn.textContent = "Удалить";
   delBtn.onclick = () => {
     if (!confirm("Удалить запись?")) return;
-    db = db.filter(x => x.barcode !== it.barcode);
+    db = db.filter(x => x.ean !== it.ean);
     saveDB();
   };
 
@@ -439,13 +447,11 @@ function render(){
 
   const grouped = groupItems(filtered, groupBy.value);
 
-  // если без групп — просто выводим
   if (groupBy.value === "none") {
     for (const it of grouped["Все"]) list.appendChild(itemCard(it));
     return;
   }
 
-  // группы — в details/summary
   for (const [gname, items] of Object.entries(grouped)) {
     const det = document.createElement("details");
     det.className = "group";
@@ -457,10 +463,9 @@ function render(){
 
     const body = document.createElement("div");
     body.className = "groupBody";
-
     for (const it of items) body.appendChild(itemCard(it));
-    det.appendChild(body);
 
+    det.appendChild(body);
     list.appendChild(det);
   }
 }
