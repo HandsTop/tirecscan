@@ -1,220 +1,412 @@
-<!doctype html>
-<html lang="ru">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Tire Inventory</title>
-<script src="https://unpkg.com/html5-qrcode"></script>
-
+<!doctype html><html lang="ru"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Tires</title><script src="https://unpkg.com/html5-qrcode"></script>
 <style>
-body{margin:0;background:#0e1016;color:#e6e6e6;font-family:-apple-system,system-ui}
-header{padding:14px 16px;background:#12141a;border-bottom:1px solid #222}
-main{padding:16px;display:grid;gap:14px}
-.card{background:#12141a;border:1px solid #23262f;border-radius:14px;padding:14px}
-label{font-size:12px;opacity:.85}
+body{margin:0;background:#0e1016;color:#e6e6e6;font-family:-apple-system,system-ui,Arial}
+header,section{background:#12141a;border:1px solid #23262f;border-radius:14px}
+header{border-radius:0;border-left:0;border-right:0;border-top:0;padding:12px 14px}
+main{padding:14px;display:grid;gap:12px}
+label{display:block;font-size:12px;opacity:.85;margin-top:10px}
 input,select,button{width:100%;box-sizing:border-box;padding:12px;margin-top:6px;border-radius:10px;border:1px solid #2a2f3a;background:#0e1016;color:#fff;font-size:16px}
-button.primary{background:#1b3cff;border:none}
-button.danger{background:#5a1a1a;border:none}
-button:disabled{opacity:.4}
-.row{display:flex;gap:10px}
-.col{flex:1}
-#reader{margin-top:10px;border-radius:14px;overflow:hidden;background:#000}
-.lock{opacity:.4;pointer-events:none}
-.badge{display:inline-block;padding:4px 8px;border-radius:999px;border:1px solid #2a2f3a;font-size:12px;margin-right:6px}
-.item{border:1px solid #2a2f3a;border-radius:12px;padding:10px;margin-top:10px}
-.muted{font-size:13px;opacity:.8;margin-top:6px}
-</style>
-</head>
+select{padding:12px}
+button{border:none;border-radius:12px}
+.primary{background:#1b3cff}.danger{background:#5a1a1a}.ghost{background:#0e1016;border:1px solid #2a2f3a}
+button:disabled{opacity:.45}
+.row{display:flex;gap:10px;align-items:flex-start;flex-wrap:nowrap}
+.col{flex:1;min-width:0}
+.muted{font-size:13px;opacity:.8;margin-top:8px;line-height:1.35}
+#reader{width:100%;border-radius:14px;overflow:hidden;background:#000;border:1px solid #23262f;margin-top:10px}
+.item{border:1px solid #2a2f3a;border-radius:12px;padding:10px;margin-top:10px;background:#0e1016}
+.badge{display:inline-block;padding:3px 8px;border-radius:999px;border:1px solid #2a2f3a;background:#12141a;font-size:12px;opacity:.95;margin:6px 6px 0 0}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+details{border:1px solid #23262f;border-radius:12px;background:#0e1016;margin-top:10px;overflow:hidden}
+summary{cursor:pointer;list-style:none;padding:10px 12px;font-weight:650;background:#12141a;border-bottom:1px solid #23262f}
+summary::-webkit-details-marker{display:none}
+.groupBody{padding:10px 12px}
+.modalBack{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-end;justify-content:center;z-index:9999;padding:16px}
+.modal{width:min(860px,100%);max-height:85vh;overflow:auto;background:#12141a;border:1px solid #23262f;border-radius:16px;padding:14px}
+.modalTop{display:flex;gap:10px;align-items:center}
+.modalTop b{flex:1;min-width:0}
+.modalClose{width:auto;margin-top:0;padding:10px 12px;border-radius:12px;background:#0e1016;border:1px solid #2a2f3a;color:#fff}
+.histItem{border:1px solid #23262f;border-radius:12px;padding:10px;margin-top:10px;background:#0e1016}
+.histMeta{font-size:13px;opacity:.9}
+.histLine{margin-top:6px;font-size:13px;line-height:1.35}
+</style></head><body>
 
-<body>
 <header>
-  <div class="row">
-    <div class="col"><b id="title"></b></div>
-    <div class="col">
-      <select id="lang"></select>
-    </div>
+  <div class="row" style="align-items:center;flex-wrap:wrap">
+    <div class="col" style="min-width:180px"><b id="ttl">Tires</b></div>
+    <select id="lng" style="width:auto;min-width:110px;margin-top:0">
+      <option value="ru">RU</option><option value="de">DE</option><option value="lv">LV</option>
+    </select>
+    <input id="usr" style="width:auto;min-width:170px;margin-top:0" />
+    <button id="usrOk" class="primary" style="width:auto;margin-top:0;padding:10px 12px"></button>
   </div>
-  <label id="userLabel"></label>
-  <input id="username">
-  <button id="confirmUser" class="primary"></button>
+  <div class="muted" id="usrHint"></div>
 </header>
 
-<main id="app" class="lock">
-
-<section class="card">
-  <button id="start" class="primary"></button>
-  <button id="stop" class="danger" disabled></button>
+<main>
+<section style="padding:14px">
+  <div class="row">
+    <div class="col"><button id="camOn" class="primary" style="margin-top:0"></button></div>
+    <div class="col"><button id="camOff" class="danger" style="margin-top:0" disabled></button></div>
+  </div>
   <div id="reader"></div>
-  <div id="status" class="muted"></div>
+  <div class="muted" id="st"></div>
+  <div class="muted" id="scanHint"></div>
 </section>
 
-<section class="card">
-  <label id="lEan"></label>
-  <input id="ean">
+<section style="padding:14px">
+  <label id="lE"></label><input id="ean" inputmode="numeric"/>
+  <div class="row" style="margin-top:10px">
+    <div class="col"><label id="lM" style="margin-top:0"></label><input id="maker"/></div>
+    <div class="col"><label id="lTM" style="margin-top:0"></label><input id="tModel"/></div>
+  </div>
+  <label id="lS"></label><input id="size"/>
+  <div class="row" style="margin-top:10px">
+    <div class="col"><label id="lL" style="margin-top:0"></label><input id="loc"/></div>
+    <div class="col"><label id="lQ" style="margin-top:0"></label><input id="qty" type="number" min="0"/></div>
+  </div>
+  <div class="row" style="margin-top:12px">
+    <div class="col"><button id="save" class="primary" style="margin-top:0"></button></div>
+    <div class="col"><button id="clr" class="ghost" style="margin-top:0"></button></div>
+  </div>
+  <div class="muted" id="rights"></div>
+</section>
 
-  <div class="row">
-    <div class="col">
-      <label id="lMaker"></label>
-      <input id="maker">
-    </div>
-    <div class="col">
-      <label id="lModel"></label>
-      <input id="model">
+<section style="padding:14px">
+  <div class="row" style="align-items:center">
+    <div class="col"><b id="listT"></b></div>
+    <div class="col"><button id="gHist" class="ghost" style="margin-top:0"></button></div>
+  </div>
+
+  <div style="display:grid;gap:10px;margin-top:10px">
+    <input id="q" />
+    <div class="row">
+      <div class="col"><label id="lGrp" style="margin-top:0"></label>
+        <select id="grp">
+          <option value="location"></option><option value="maker"></option><option value="none"></option>
+        </select>
+      </div>
+      <div class="col"><label id="lSort" style="margin-top:0"></label>
+        <select id="srt">
+          <option value="updated_desc"></option><option value="updated_asc"></option><option value="qty_desc"></option>
+          <option value="loc_asc"></option><option value="maker_asc"></option><option value="model_asc"></option>
+        </select>
+      </div>
     </div>
   </div>
 
-  <label id="lSize"></label>
-  <input id="size">
-
-  <div class="row">
-    <div class="col">
-      <label id="lLoc"></label>
-      <input id="loc">
-    </div>
-    <div class="col">
-      <label id="lQty"></label>
-      <input id="qty" type="number">
-    </div>
-  </div>
-
-  <button id="save" class="primary"></button>
-</section>
-
-<section class="card">
+  <div class="muted" id="stats" style="margin-top:10px"></div>
   <div id="list"></div>
 </section>
-
 </main>
 
-<script>
-/* ===== CONFIG ===== */
-const USER_KEY="tires_user_fixed";
-const LANG_KEY="tires_lang";
-const DB_KEY="tires_db_final";
+<div id="mb" class="modalBack" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modalTop"><b id="mt"></b><button id="mc" class="modalClose"></button></div>
+    <div id="md"></div>
+  </div>
+</div>
 
-/* ===== I18N ===== */
+<script>
+const ADMIN="Andrejs O", K={U:"tires_user_fixed_v3",L:"tires_lang_v3",D:"tires_db_v6",G:"tires_global_history_v2"};
 const I={
-ru:{
-title:"Учёт шин",
-user:"Имя пользователя",
-confirm:"Подтвердить имя",
-ean:"Штрих-код (EAN)",
-maker:"Марка",
-model:"Модель",
-size:"Размер (например 195/65 R16 104/102T)",
-loc:"Локация (например 216)",
-qty:"Количество",
-start:"Включить камеру",
-stop:"Выключить",
-save:"Сохранить",
-statusOff:"Камера выключена"
-},
-de:{
-title:"Reifenverwaltung",
-user:"Benutzername",
-confirm:"Name bestätigen",
-ean:"Barcode (EAN)",
-maker:"Hersteller",
-model:"Modell",
-size:"Größe (z. B. 195/65 R16 104/102T)",
-loc:"Lagerplatz (z. B. 216)",
-qty:"Menge",
-start:"Kamera starten",
-stop:"Stop",
-save:"Speichern",
-statusOff:"Kamera aus"
-},
-lv:{
-title:"Riepu uzskaite",
-user:"Lietotājvārds",
-confirm:"Apstiprināt vārdu",
-ean:"Svītrkods (EAN)",
-maker:"Ražotājs",
-model:"Modelis",
-size:"Izmērs (piem. 195/65 R16 104/102T)",
-loc:"Vieta (piem. 216)",
-qty:"Daudzums",
-start:"Ieslēgt kameru",
-stop:"Izslēgt",
-save:"Saglabāt",
-statusOff:"Kamera izslēgta"
-}
+ru:{ttl:"Учёт шин — сканер",uPh:"Имя пользователя",ok:"Подтвердить",uNeed:"Сначала введи имя пользователя.",uLock:"Имя закреплено за этим устройством.",
+adm:"Права: админ (редактирование/удаление).",usr:"Права: пользователь (только добавление новых).",
+on:"Включить камеру",off:"Выключить",offSt:"Камера выключена",onSt:"Камера включена. Наведи на штрих-код…",found:"Найдено",auto:"(камера выключается)",
+hint:"После успешного скана камера выключится, форма очистится (кроме EAN).",
+e:"Штрих-код (EAN)",ePh:"сканируется автоматически",m:"Марка",mPh:"например Nexen",tm:"Модель",tmPh:"например WinGuard WT1",
+s:"Размер",sPh:"например 195/65 R16 104/102T",l:"Локация",lPh:"например 216",q:"Кол-во",qPh:"например 34",
+save:"Сохранить",clr:"Очистить",list:"Список шин",qPh2:"Поиск: EAN, марка, модель, размер, локация",
+grp:"Группировка",sort:"Сортировка",gL:"По локации",gM:"По марке",gN:"Без группировки",
+sN:"Сначала новые",sO:"Сначала старые",sQ:"Кол-во ↓",sL:"Локация A→Z",sMa:"Марка A→Z",sMo:"Модель A→Z",
+tot:"Всего записей",sho:"Показано",none:"Ничего не найдено.",all:"Все",noL:"Без локации",noM:"Без марки",
+open:"Открыть",del:"Удалить",hist:"История",gHist:"Общая история",delC:"Удалить запись?",
+noE:"Нет EAN (штрих-кода).",badQ:"Кол-во должно быть числом (0 или больше).",
+https:"Нужно HTTPS (GitHub Pages). Открой страницу по ссылке https://...",camFail:"Не удалось включить камеру. Проверь разрешение: Настройки → Safari → Камера.",
+cant:"Редактирование запрещено (только Andrejs O).",hItem:"История позиции",hAll:"Общая история действий",close:"Закрыть",
+c:"Создано",u:"Изменено",d:"Удалено",f:{maker:"Марка",tModel:"Модель",size:"Размер",loc:"Локация",qty:"Кол-во"}},
+de:{ttl:"Reifenbestand — Kamera-Scanner",uPh:"Benutzername",ok:"Bestätigen",uNeed:"Bitte zuerst einen Benutzernamen eingeben.",uLock:"Name ist an dieses Gerät gebunden.",
+adm:"Rolle: Admin (Bearbeiten/Löschen).",usr:"Rolle: Benutzer (nur neu anlegen).",
+on:"Kamera starten",off:"Stop",offSt:"Kamera aus",onSt:"Kamera an. Auf den Barcode richten…",found:"Gefunden",auto:"(Kamera wird beendet)",
+hint:"Nach einem erfolgreichen Scan wird die Kamera beendet und das Formular geleert (EAN bleibt).",
+e:"Barcode (EAN)",ePh:"wird automatisch gescannt",m:"Hersteller",mPh:"z. B. Nexen",tm:"Modell",tmPh:"z. B. WinGuard WT1",
+s:"Größe",sPh:"z. B. 195/65 R16 104/102T",l:"Lagerplatz",lPh:"z. B. 216",q:"Menge",qPh:"z. B. 34",
+save:"Speichern",clr:"Leeren",list:"Reifenliste",qPh2:"Suche: EAN, Hersteller, Modell, Größe, Lagerplatz",
+grp:"Gruppierung",sort:"Sortierung",gL:"Nach Lagerplatz",gM:"Nach Hersteller",gN:"Keine Gruppierung",
+sN:"Neueste zuerst",sO:"Älteste zuerst",sQ:"Menge ↓",sL:"Lagerplatz A→Z",sMa:"Hersteller A→Z",sMo:"Modell A→Z",
+tot:"Einträge gesamt",sho:"Angezeigt",none:"Keine Treffer.",all:"Alle",noL:"Ohne Lagerplatz",noM:"Ohne Hersteller",
+open:"Öffnen",del:"Löschen",hist:"Verlauf",gHist:"Globaler Verlauf",delC:"Eintrag löschen?",
+noE:"EAN fehlt.",badQ:"Menge muss eine Zahl sein (0 oder mehr).",
+https:"HTTPS erforderlich (GitHub Pages). Öffne die Seite über https://…",camFail:"Kamera konnte nicht gestartet werden. Prüfe: Einstellungen → Safari → Kamera.",
+cant:"Bearbeiten nicht erlaubt (nur Andrejs O).",hItem:"Eintragsverlauf",hAll:"Globaler Aktionsverlauf",close:"Schließen",
+c:"Erstellt",u:"Geändert",d:"Gelöscht",f:{maker:"Hersteller",tModel:"Modell",size:"Größe",loc:"Lagerplatz",qty:"Menge"}},
+lv:{ttl:"Riepu uzskaite — kameras skeneris",uPh:"Lietotājvārds",ok:"Apstiprināt",uNeed:"Vispirms ievadi lietotājvārdu.",uLock:"Vārds piesaistīts šai ierīcei.",
+adm:"Loma: Admin (var labot/dzēst).",usr:"Loma: Lietotājs (tikai jauns ieraksts).",
+on:"Ieslēgt kameru",off:"Izslēgt",offSt:"Kamera izslēgta",onSt:"Kamera ieslēgta. Tēmē uz svītrkodu…",found:"Atrasts",auto:"(kamera izslēdzas)",
+hint:"Pēc veiksmīga skenējuma kamera izslēdzas un forma tiek notīrīta (EAN paliek).",
+e:"Svītrkods (EAN)",ePh:"tiek noskenēts automātiski",m:"Ražotājs",mPh:"piem. Nexen",tm:"Modelis",tmPh:"piem. WinGuard WT1",
+s:"Izmērs",sPh:"piem. 195/65 R16 104/102T",l:"Vieta",lPh:"piem. 216",q:"Daudzums",qPh:"piem. 34",
+save:"Saglabāt",clr:"Notīrīt",list:"Riepu saraksts",qPh2:"Meklēšana: EAN, ražotājs, modelis, izmērs, vieta",
+grp:"Grupēšana",sort:"Kārtošana",gL:"Pēc vietas",gM:"Pēc ražotāja",gN:"Bez grupēšanas",
+sN:"Jaunākie vispirms",sO:"Vecākie vispirms",sQ:"Daudzums ↓",sL:"Vieta A→Z",sMa:"Ražotājs A→Z",sMo:"Modelis A→Z",
+tot:"Kopā ieraksti",sho:"Parādīts",none:"Nav rezultātu.",all:"Visi",noL:"Bez vietas",noM:"Bez ražotāja",
+open:"Atvērt",del:"Dzēst",hist:"Vēsture",gHist:"Kopējā vēsture",delC:"Dzēst ierakstu?",
+noE:"Trūkst EAN.",badQ:"Daudzumam jābūt skaitlim (0 vai vairāk).",
+https:"Nepieciešams HTTPS (GitHub Pages). Atver lapu ar https://…",camFail:"Neizdevās ieslēgt kameru. Pārbaudi: Iestatījumi → Safari → Kamera.",
+cant:"Labošana aizliegta (tikai Andrejs O).",hItem:"Ieraksta vēsture",hAll:"Kopējā darbību vēsture",close:"Aizvērt",
+c:"Izveidots",u:"Mainīts",d:"Dzēsts",f:{maker:"Ražotājs",tModel:"Modelis",size:"Izmērs",loc:"Vieta",qty:"Daudzums"}}
 };
 
-/* ===== STATE ===== */
-let lang=localStorage.getItem(LANG_KEY)||"ru";
-let user=localStorage.getItem(USER_KEY)||"";
+let lang=localStorage.getItem(K.L)||"ru"; if(!I[lang]) lang="ru";
+let user=localStorage.getItem(K.U)||"";
+let db=(()=>{try{let x=JSON.parse(localStorage.getItem(K.D)||"[]");return Array.isArray(x)?x:[]}catch{return[]}})();
+let gh=(()=>{try{let x=JSON.parse(localStorage.getItem(K.G)||"[]");return Array.isArray(x)?x:[]}catch{return[]}})();
+let scan=null,running=false,last="";
 
-/* ===== UI ===== */
-const $=id=>document.getElementById(id);
-$("lang").innerHTML=Object.keys(I).map(l=>`<option value="${l}">${l.toUpperCase()}</option>`).join("");
-$("lang").value=lang;
+const $=id=>document.getElementById(id), T=()=>I[lang];
+const n=()=>Date.now(), isAdmin=()=>user===ADMIN;
+
+function save(){localStorage.setItem(K.D,JSON.stringify(db))}
+function saveGh(){localStorage.setItem(K.G,JSON.stringify(gh))}
+function needUser(){ if(!user){alert(T().uNeed);return false} return true }
+function norm(s){return String(s||"").replace(/\s+/g,"").trim()}
+function clearForm(keepEAN=false){
+  const e=$("ean").value; $("ean").value=keepEAN?e:"";
+  ["maker","tModel","size","loc","qty"].forEach(id=>$(id).value="");
+}
+function diff(a,b){
+  const f=["maker","tModel","size","loc","qty"], out=[];
+  for(const k of f){
+    const x=k==="qty"?Number(a[k]??0):String(a[k]||"");
+    const y=k==="qty"?Number(b[k]??0):String(b[k]||"");
+    if(String(x)!==String(y)) out.push({field:k,from:x,to:y});
+  }
+  return out;
+}
+function addGH(action,ean,changes){ gh.unshift({ts:n(),user,action,ean,changes:changes||[]}); if(gh.length>500) gh.length=500; saveGh(); }
 
 function apply(){
-const t=I[lang];
-$("title").textContent=t.title;
-$("userLabel").textContent=t.user;
-$("confirmUser").textContent=t.confirm;
-$("lEan").textContent=t.ean;
-$("lMaker").textContent=t.maker;
-$("lModel").textContent=t.model;
-$("lSize").textContent=t.size;
-$("lLoc").textContent=t.loc;
-$("lQty").textContent=t.qty;
-$("start").textContent=t.start;
-$("stop").textContent=t.stop;
-$("save").textContent=t.save;
-$("status").textContent=t.statusOff;
+  const t=T();
+  $("ttl").textContent=t.ttl;
+  $("usr").placeholder=t.uPh;
+  $("usrOk").textContent=t.ok;
+  $("usrHint").textContent=user?t.uLock:t.uNeed;
+  $("camOn").textContent=t.on; $("camOff").textContent=t.off;
+  $("st").textContent=running?t.onSt:t.offSt;
+  $("scanHint").textContent=t.hint;
+  $("lE").textContent=t.e; $("ean").placeholder=t.ePh;
+  $("lM").textContent=t.m; $("maker").placeholder=t.mPh;
+  $("lTM").textContent=t.tm; $("tModel").placeholder=t.tmPh;
+  $("lS").textContent=t.s; $("size").placeholder=t.sPh;
+  $("lL").textContent=t.l; $("loc").placeholder=t.lPh;
+  $("lQ").textContent=t.q; $("qty").placeholder=t.qPh;
+  $("save").textContent=t.save; $("clr").textContent=t.clr;
+  $("listT").textContent=t.list; $("gHist").textContent=t.gHist;
+  $("q").placeholder=t.qPh2;
+  $("lGrp").textContent=t.grp; $("lSort").textContent=t.sort;
+  const grp=$("grp"), srt=$("srt");
+  grp.options[0].text=t.gL; grp.options[1].text=t.gM; grp.options[2].text=t.gN;
+  srt.options[0].text=t.sN; srt.options[1].text=t.sO; srt.options[2].text=t.sQ;
+  srt.options[3].text=t.sL; srt.options[4].text=t.sMa; srt.options[5].text=t.sMo;
+  $("rights").textContent=user?(isAdmin()?t.adm:t.usr):"";
+  $("mc").textContent=t.close;
+}
+function compare(a,b,mode){
+  const s=x=>String(x||"");
+  if(mode==="updated_desc") return (b.updatedAt||0)-(a.updatedAt||0);
+  if(mode==="updated_asc")  return (a.updatedAt||0)-(b.updatedAt||0);
+  if(mode==="qty_desc")     return (b.qty||0)-(a.qty||0);
+  if(mode==="loc_asc")      return s(a.loc).localeCompare(s(b.loc),"ru");
+  if(mode==="maker_asc")    return s(a.maker).localeCompare(s(b.maker),"ru");
+  if(mode==="model_asc")    return s(a.tModel).localeCompare(s(b.tModel),"ru");
+  return 0;
+}
+function filter(items){
+  const q=String($("q").value||"").trim().toLowerCase();
+  if(!q) return items;
+  return items.filter(x=>["ean","maker","tModel","size","loc"].some(k=>String(x[k]||"").toLowerCase().includes(q)));
+}
+function group(items,mode){
+  const t=T();
+  if(mode==="none") return {[t.all]:items};
+  const map=new Map();
+  for(const it of items){
+    const key=mode==="maker"?(String(it.maker||"").trim()||t.noM):(String(it.loc||"").trim()||t.noL);
+    if(!map.has(key)) map.set(key,[]);
+    map.get(key).push(it);
+  }
+  const keys=[...map.keys()].sort((a,b)=>String(a).localeCompare(String(b),"ru"));
+  const out={}; for(const k of keys) out[k]=map.get(k);
+  return out;
 }
 
-$("lang").onchange=()=>{lang=$("lang").value;localStorage.setItem(LANG_KEY,lang);apply()};
-apply();
-
-/* ===== USER LOCK ===== */
-if(user){
-$("username").value=user;
-$("username").disabled=true;
-$("confirmUser").disabled=true;
-$("app").classList.remove("lock");
+function openModal(title, html){
+  $("mt").textContent=title;
+  $("md").innerHTML=html;
+  $("mb").style.display="flex";
+}
+function showItemHist(ean){
+  const t=T(), it=db.find(x=>x.ean===ean);
+  const hist=(it&&Array.isArray(it.history))?it.history:[];
+  if(!hist.length) return openModal(`${t.hItem}: ${ean}`, `<div class="muted">${t.none}</div>`);
+  const html=hist.map(h=>{
+    const ts=new Date(h.ts||n()).toLocaleString();
+    const lab=h.type==="create"?t.c:t.u;
+    const lines=(h.changes||[]).map(c=>{
+      const fn=(t.f&&t.f[c.field])?t.f[c.field]:c.field;
+      return `<div class="histLine">${fn}: ${c.from} → ${c.to}</div>`;
+    }).join("") || `<div class="histLine">—</div>`;
+    return `<div class="histItem"><div class="histMeta">${ts} • ${h.user||"—"} • ${lab}</div>${lines}</div>`;
+  }).join("");
+  openModal(`${t.hItem}: ${ean}`, html);
+}
+function showGlobalHist(){
+  const t=T();
+  if(!gh.length) return openModal(t.hAll, `<div class="muted">${t.none}</div>`);
+  const html=gh.map(h=>{
+    const ts=new Date(h.ts||n()).toLocaleString();
+    const lab=h.action==="create"?t.c:(h.action==="delete"?t.d:t.u);
+    const lines=(h.changes||[]).map(c=>{
+      const fn=(t.f&&t.f[c.field])?t.f[c.field]:c.field;
+      return `<div class="histLine">${fn}: ${c.from} → ${c.to}</div>`;
+    }).join("");
+    return `<div class="histItem"><div class="histMeta">${ts} • ${h.user||"—"} • ${lab} • ${h.ean||""}</div>${lines}</div>`;
+  }).join("");
+  openModal(t.hAll, html);
 }
 
-$("confirmUser").onclick=()=>{
-const v=$("username").value.trim();
-if(!v) return alert("Введите имя");
-localStorage.setItem(USER_KEY,v);
-location.reload();
-};
-
-/* ===== DB ===== */
-let db=JSON.parse(localStorage.getItem(DB_KEY)||"[]");
-
-/* ===== SAVE ===== */
-$("save").onclick=()=>{
-db.push({
-ean:$("ean").value,
-maker:$("maker").value,
-model:$("model").value,
-size:$("size").value,
-loc:$("loc").value,
-qty:$("qty").value,
-user,
-time:new Date().toLocaleString()
-});
-localStorage.setItem(DB_KEY,JSON.stringify(db));
-render();
-};
+async function stopCam(){
+  if(scan&&running){ try{await scan.stop()}catch{} try{await scan.clear()}catch{} }
+  scan=null; running=false; $("camOn").disabled=false; $("camOff").disabled=true; $("st").textContent=T().offSt;
+}
 
 function render(){
-$("list").innerHTML=db.map(i=>`
-<div class="item">
-<b>${i.maker} ${i.model}</b><br>
-<span class="badge">${i.size}</span>
-<span class="badge">${i.loc}</span>
-<span class="badge">${i.qty}</span>
-<div class="muted">${i.ean} • ${i.user} • ${i.time}</div>
-</div>`).join("");
+  const t=T();
+  const items=filter(db.slice()).sort((a,b)=>compare(a,b,$("srt").value));
+  const q=$("q").value.trim();
+  $("stats").textContent=`${t.tot}: ${db.length}`+(q?` • ${t.sho}: ${items.length}`:"");
+  const lst=$("list"); lst.innerHTML="";
+  if(!items.length){ lst.innerHTML=`<div class="muted">${t.none}</div>`; return; }
+  const grouped=group(items,$("grp").value);
+  const mkCard=(it)=>{
+    const head=[it.maker,it.tModel].filter(Boolean).join(" ")||"—";
+    const delDisabled=!isAdmin();
+    const delBtn=`<button class="danger" style="margin-top:0" ${delDisabled?"disabled":""} data-del="${it.ean}">${t.del}</button>`;
+    return `<div class="item">
+      <b>${head}</b>
+      <div class="muted">${t.s}: ${it.size||"—"}</div>
+      <div class="mono">${it.ean}</div>
+      <div>
+        <span class="badge">${t.l}: <b>${it.loc||"-"}</b></span>
+        <span class="badge">${t.q}: <b>${Number.isFinite(it.qty)?it.qty:0}</b></span>
+      </div>
+      <div class="row" style="margin-top:10px;gap:8px">
+        <div class="col"><button class="primary" style="margin-top:0" data-open="${it.ean}">${t.open}</button></div>
+        <div class="col"><button class="ghost" style="margin-top:0" data-hist="${it.ean}">${t.hist}</button></div>
+        <div class="col">${delBtn}</div>
+      </div>
+    </div>`;
+  };
+  const renderBlock=(name,arr)=>`
+    <details open><summary>${name} • ${arr.length}</summary>
+      <div class="groupBody">${arr.map(mkCard).join("")}</div>
+    </details>`;
+  if($("grp").value==="none"){
+    lst.innerHTML=items.map(mkCard).join("");
+  } else {
+    lst.innerHTML=Object.entries(grouped).map(([k,v])=>renderBlock(k,v)).join("");
+  }
 }
-render();
-</script>
-</body>
-</html>
+
+function bindListHandlers(){
+  $("list").addEventListener("click",(e)=>{
+    const t=e.target;
+    if(!(t instanceof HTMLElement)) return;
+    const ean=t.getAttribute("data-open")||t.getAttribute("data-hist")||t.getAttribute("data-del");
+    if(!ean) return;
+
+    if(t.hasAttribute("data-open")){
+      const it=db.find(x=>x.ean===ean); if(!it) return;
+      $("ean").value=it.ean||""; $("maker").value=it.maker||""; $("tModel").value=it.tModel||"";
+      $("size").value=it.size||""; $("loc").value=it.loc||""; $("qty").value=String(it.qty??"");
+      window.scrollTo({top:0,behavior:"smooth"});
+      return;
+    }
+    if(t.hasAttribute("data-hist")) return showItemHist(ean);
+
+    if(t.hasAttribute("data-del")){
+      if(!needUser()) return;
+      if(!isAdmin()) return alert(T().cant);
+      if(!confirm(T().delC)) return;
+      db=db.filter(x=>x.ean!==ean); save(); addGH("delete",ean,[]); render();
+    }
+  });
+}
+
+function init(){
+  $("lng").value=lang;
+  $("usr").value=user;
+  if(user){ $("usr").disabled=true; $("usrOk").disabled=true; }
+  apply(); render(); bindListHandlers();
+}
+
+$("lng").onchange=()=>{ lang=$("lng").value; localStorage.setItem(K.L,lang); apply(); render(); };
+$("usrOk").onclick=()=>{
+  const v=String($("usr").value||"").trim();
+  if(!v) return alert(T().uNeed);
+  localStorage.setItem(K.U,v); location.reload();
+};
+$("mc").onclick=()=>{ $("mb").style.display="none"; $("md").innerHTML=""; };
+$("mb").onclick=(e)=>{ if(e.target===$("mb")) $("mc").click(); };
+
+$("camOn").onclick=async ()=>{
+  if(!needUser()) return;
+  if(!window.isSecureContext) return alert(T().https);
+  clearForm(false);
+  try{
+    scan=new Html5Qrcode("reader"); last=""; running=true;
+    $("camOn").disabled=true; $("camOff").disabled=false; $("st").textContent=T().onSt;
+    await scan.start({facingMode:"environment"},{fps:12,qrbox:{width:260,height:160},experimentalFeatures:{useBarCodeDetectorIfSupported:false}},
+      async (txt)=>{
+        const v=norm(txt); if(!v||v===last) return; last=v;
+        $("ean").value=v; ["maker","tModel","size","loc","qty"].forEach(id=>$(id).value="");
+        $("st").textContent=`${T().found}: ${v} ${T().auto}`;
+        await stopCam(); $("maker").focus();
+      }, ()=>{}
+    );
+  }catch(err){ console.log(err); alert(T().camFail); await stopCam(); }
+};
+$("camOff").onclick=stopCam;
+
+$("clr").onclick=()=>{ clearForm(false); $("ean").focus(); };
+
+$("save").onclick=()=>{
+  if(!needUser()) return;
+  const code=norm($("ean").value); if(!code) return alert(T().noE);
+  const q=Number($("qty").value||0); if(!Number.isFinite(q)||q<0) return alert(T().badQ);
+  const next={ean:code,maker:norm($("maker").value),tModel:norm($("tModel").value),size:norm($("size").value),
+              loc:norm($("loc").value),qty:q,createdAt:n(),updatedAt:n(),history:[]};
+  const i=db.findIndex(x=>x.ean===code);
+  if(i>=0){
+    if(!isAdmin()) return alert(T().cant);
+    const prev=db[i];
+    next.createdAt=prev.createdAt||next.createdAt;
+    next.history=Array.isArray(prev.history)?prev.history:[];
+    const changes=diff(prev,next);
+    if(changes.length){ next.history.unshift({type:"update",user,ts:n(),changes}); addGH("update",code,changes); }
+    db[i]=next;
+  } else {
+    next.history=[{type:"create",user,ts:n(),changes:[]}];
+    addGH("create",code,[]);
+    db.push(next);
+  }
+  save(); render(); clearForm(false); $("ean").focus();
+};
+
+$("q").oninput=render; $("grp").onchange=render; $("srt").onchange=render;
+$("gHist").onclick=showGlobalHist;
+
+init();
+</script></body></html>
