@@ -51,19 +51,24 @@
     .histLine{margin-top:6px;font-size:13px;line-height:1.35;}
 
     /* Home */
-    .homeWrap{min-height:60vh;display:flex;align-items:center;justify-content:center;}
-    .logoCard{padding:26px 22px;text-align:center;border-radius:18px;border:1px solid #23262f;background:#12141a;}
+    .homeFull{
+  position: relative;
+  width: 100%;
+  min-height: calc(100vh - 58px); /* вычитаем высоту header */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: #0e1016;
+}
 
+/* Logo максимально крупный, но без обрезки */
+    .homeLogo{width: min(90vw, 900px);height: min(70vh, 900px);object-fit: contain;display: block;}
     .logoImg{width:66px;height:66px;border-radius:18px;border:1px solid #2a2f3a;background:#0e1016;display:block;margin:0 auto 14px;object-fit:contain;}
-    .logoTitle{font-size:20px;font-weight:700;}
-    .logoSub{margin-top:6px;font-size:13px;opacity:.8;}
 
     /* Menu */
-    .menuBtn{
-      width:auto;margin-top:0;padding:10px 12px;border-radius:12px;
-      background:#0e1016;border:1px solid #2a2f3a;color:#fff;
-      font-size:18px;line-height:1;
-    }
+    .menuBtn{width:auto;margin-top:0;padding:10px 12px;border-radius:12px;background:#0e1016;border:1px solid #2a2f3a;color:#fff;font-size:18px;line-height:1;}
     .menuBack{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:9998;}
     .menuPanel{
       position:fixed;top:10px;left:10px;z-index:9999;
@@ -116,15 +121,9 @@
 <main>
 
   <!-- HOME PAGE -->
-  <section id="pageHome" class="card" style="display:none;">
-    <div class="homeWrap">
-      <div class="logoCard">
-        <img class="logoImg" src="logo.png" alt="Logo">
-        <div class="logoTitle" id="homeTitle">Tires</div>
-        <div class="logoSub" id="homeSub">Inventory</div>
-      </div>
-    </div>
-  </section>
+  <section id="pageHome" class="homeFull" style="display:none;">
+  <img id="homeLogo" class="homeLogo" src="assets/logo.png" alt="Logo">
+</section>
 
   <!-- SCAN PAGE -->
   <div id="pageScan" style="display:none; display:grid; gap:14px;">
@@ -1142,5 +1141,6 @@ boot();
 </script>
 </body>
 </html>
+
 
 
