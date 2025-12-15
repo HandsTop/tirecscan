@@ -605,14 +605,14 @@ function ensureUser(){
 function applyAccessVisibility(){
   const admin = isAdmin();
 
-  // Камера доступна ВСЕМ (для поиска)
-  el.scannerCard.style.display = "";
+  // Камера доступна всем (для поиска)
+  if (el.scannerCard) el.scannerCard.style.display = "";
 
   // Форма добавления/редактирования — только админ
-  el.formCard.style.display = admin ? "" : "none";
+  if (el.formCard) el.formCard.style.display = admin ? "" : "none";
 
-  // Общая история — только админ (если ты уже это делал)
-  el.openGlobalHistory.style.display = admin ? "" : "none";
+  // Общая история — только админ (и защита от null)
+  if (el.openGlobalHistory) el.openGlobalHistory.style.display = admin ? "" : "none";
 }
 
 /* ==============================
@@ -798,47 +798,30 @@ async function stopCamera(){
 }
 
 async function startCamera(){
-  if (!ensureUser()) return;
-  if (!window.isSecureContext) { alert(T().needHttps); return; }
-
-  clearForm({ keepEAN:false });
-
-  try {
-    scanner = new Html5Qrcode("reader");
-    lastScan = "";
-    scanning = true;
-
-    el.start.disabled = true;
-    el.stop.disabled = false;
-    el.status.textContent = T().camOn;
-
-    await scanner.start(
-      { facingMode:"environment" },
-      { fps:12, qrbox:{ width:260, height:160 }, experimentalFeatures:{ useBarCodeDetectorIfSupported:false } },
-      async (text) => {
+async (text) => {
   const v = normEAN(text);
   if (!v || v === lastScan) return;
   lastScan = v;
 
   if (isAdmin()) {
-    // Админ: заполняем форму как раньше
+    // Админ: заполняем форму
     el.ean.value = v;
     el.maker.value = "";
     el.tireModel.value = "";
     el.size.value = "";
     el.loc.value = "";
     el.qty.value = "";
+
     el.status.textContent = `${T().found}: ${v} ${T().autoOff}`;
     await stopCamera();
     el.maker.focus();
   } else {
-    // Пользователь: это ПОИСК
-    el.search.value = v;     // если EAN — покажет конкретную позицию
-    renderList();            // покажет найденное
+    // Обычный пользователь: это ПОИСК
+    el.search.value = v;
+    renderList();
+
     el.status.textContent = `${T().found}: ${v} ${T().autoOff}`;
     await stopCamera();
-
-    // прокрутим к списку
     el.list.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 }
@@ -930,9 +913,7 @@ function compareItems(a,b,mode){
 }
 function filterItems(items){
   const q = normText(el.search.value).toLowerCase();
-
-  // ВАЖНО: если нет поиска — ничего не показываем
-  if (!q) return [];
+  if (!q) return []; // пока нет поиска — список пустой
 
   return items.filter(x =>
     String(x.ean||"").toLowerCase().includes(q) ||
@@ -1026,10 +1007,7 @@ function renderList(){
   if (!filtered.length) {
   const empty = document.createElement("div");
   empty.className = "muted";
-
-  // Если поиск пустой — подсказка. Если поиск есть, но результатов нет — "ничего не найдено"
-  empty.textContent = normText(el.search.value) ? T().nothing : T().promptSearch;
-
+  empty.textContent = normText(el.search.value) ? T().nothing : (T().promptSearch || T().nothing);
   el.list.appendChild(empty);
   return;
 }
