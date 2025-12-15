@@ -179,6 +179,11 @@
       </div>
 
       <div class="toolbar">
+        <div id="searchScanner" class="card" style="display:none;margin-top:10px;">
+  <button id="startSearchScan" class="primary" style="margin-top:0;"></button>
+  <div id="readerSearch" style="margin-top:10px;"></div>
+  <div class="muted" id="searchScanStatus"></div>
+      </div>
         <input id="search" />
 
         <div class="row">
@@ -268,6 +273,9 @@ const I18N = {
     autoOff: "(камера выключается)",
     scanHint: "Скан: админ заполняет форму, пользователь — ищет позицию по EAN.",
 
+    startSearchScan: "Сканировать для поиска",
+    searchScanHint: "Сканируй штрих-код — позиция будет найдена автоматически",
+
     ean: "Штрих-код (EAN)",
     eanPh: "сканируется автоматически",
     maker: "Марка",
@@ -352,6 +360,9 @@ const I18N = {
     autoOff: "(Kamera wird beendet)",
     scanHint: "Scan: Admin füllt das Formular, Benutzer sucht per EAN.",
 
+    startSearchScan: "Zum Suchen scannen",
+    searchScanHint: "Barcode scannen – Position wird automatisch gefunden",
+
     ean: "Barcode (EAN)",
     eanPh: "wird automatisch gescannt",
     maker: "Hersteller",
@@ -435,6 +446,9 @@ const I18N = {
     found: "Atrasts",
     autoOff: "(kamera izslēdzas)",
     scanHint: "Skenē: admins aizpilda formu, lietotājs meklē pēc EAN.",
+
+    startSearchScan: "Skenēt meklēšanai",
+    searchScanHint: "Noskenē svītrkodu – pozīcija tiks atrasta automātiski",
 
     ean: "Svītrkods (EAN)",
     eanPh: "tiek noskenēts automātiski",
@@ -535,6 +549,11 @@ const el = {
   status: $("status"),
   scanHint: $("scanHint"),
 
+  searchScanner: $("searchScanner"),
+  startSearchScan: $("startSearchScan"),
+  readerSearch: $("readerSearch"),
+  searchScanStatus: $("searchScanStatus"),
+
   lblEan: $("lblEan"),
   ean: $("ean"),
   lblMaker: $("lblMaker"),
@@ -583,13 +602,11 @@ function ensureUser(){
 function applyAccessVisibility(){
   const admin = isAdmin();
 
-  // Камера — ВСЕМ (админ: для заполнения, пользователь: для поиска)
-  el.scannerCard.style.display = "";
-
-  // Форма — ТОЛЬКО админ
+  el.scannerCard.style.display = admin ? "" : "none";
   el.formCard.style.display = admin ? "" : "none";
 
-  // Общая история — ТОЛЬКО админ
+  el.searchScanner.style.display = admin ? "none" : "";
+
   el.openGlobalHistory.style.display = admin ? "" : "none";
 }
 
@@ -635,6 +652,9 @@ function applyI18n(){
   el.stop.textContent = t.stop;
   el.status.textContent = scanning ? t.camOn : t.camOff;
   el.scanHint.textContent = t.scanHint;
+
+  el.startSearchScan.textContent = t.startSearchScan;
+  el.searchScanStatus.textContent = t.searchScanHint;
 
   el.lblEan.textContent = t.ean; el.ean.placeholder = t.eanPh;
   el.lblMaker.textContent = t.maker; el.maker.placeholder = t.makerPh;
@@ -801,6 +821,44 @@ async function startCamera(){
     console.error(e);
     alert(T().camFail);
     await stopCamera();
+  }
+}
+
+let searchScannerInst = null;
+
+async function startSearchCamera(){
+  if (!ensureUser()) return;
+  if (isAdmin()) return; // админ не использует поиск-камеру
+  if (!window.isSecureContext) { alert(T().needHttps); return; }
+
+  try {
+    searchScannerInst = new Html5Qrcode("readerSearch");
+    el.startSearchScan.disabled = true;
+    el.searchScanStatus.textContent = T().camOn;
+
+    await searchScannerInst.start(
+      { facingMode:"environment" },
+      { fps:12, qrbox:{ width:260, height:160 } },
+      async (text) => {
+        const v = normEAN(text);
+        if (!v) return;
+
+        el.search.value = v;
+        renderList();
+
+        el.searchScanStatus.textContent = `${T().found}: ${v}`;
+        await searchScannerInst.stop();
+        await searchScannerInst.clear();
+        searchScannerInst = null;
+        el.startSearchScan.disabled = false;
+
+        el.list.scrollIntoView({ behavior:"smooth", block:"start" });
+      }
+    );
+  } catch (e) {
+    console.error(e);
+    alert(T().camFail);
+    el.startSearchScan.disabled = false;
   }
 }
 
@@ -1027,6 +1085,7 @@ function initUserUI(){
 function bindEvents(){
   el.menuBtn.addEventListener("click", openMenu);
   el.menuBack.addEventListener("click", closeMenu);
+  el.startSearchScan.addEventListener("click", startSearchCamera);
   el.menuHome.addEventListener("click", () => setPage("home"));
   el.menuScan.addEventListener("click", () => setPage("scan"));
 
