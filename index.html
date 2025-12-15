@@ -59,12 +59,12 @@
     .menuBtn{
       width:auto;margin-top:0;padding:10px 12px;border-radius:12px;
       background:#0e1016;border:1px solid #2a2f3a;color:#fff;
-      font-size:18px;line-height:1;
+      font-size:20px;line-height:1;
     }
     .menuBack{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:9998;}
     .menuPanel{
       position:fixed;top:10px;left:10px;z-index:9999;
-      width:260px;max-width:80vw;
+      width:280px;max-width:85vw;
       background:#12141a;border:1px solid #23262f;border-radius:14px;
       padding:10px;
       display:none;
@@ -75,32 +75,28 @@
       margin-top:8px;
     }
     .menuItem.active{border-color:#1b3cff;}
-    .topRight{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+    .menuSection{
+      margin-top:10px;
+      padding-top:10px;
+      border-top:1px solid #23262f;
+    }
+    .menuTitle{
+      font-size:12px;
+      opacity:.8;
+      margin-top:6px;
+    }
   </style>
 </head>
 
 <body>
 <header>
   <div class="row">
-    <button id="menuBtn" class="menuBtn" aria-label="menu">☰</button>
+    <button id="menuBtn" class="menuBtn" aria-label="menu">⋮</button>
     <div class="col" style="min-width:180px;">
       <b id="uiTitle">Tires</b>
       <div class="muted" id="pageSubtitle" style="margin-top:4px;"></div>
     </div>
-
-    <div class="topRight">
-      <select id="lang" style="width:auto;min-width:120px;margin-top:0;">
-        <option value="ru">RU</option>
-        <option value="de">DE</option>
-        <option value="lv">LV</option>
-      </select>
-
-      <input id="username" style="width:auto;min-width:180px;margin-top:0;" />
-      <button id="confirmUser" class="primary" style="width:auto;margin-top:0;padding:10px 12px;"></button>
-    </div>
   </div>
-
-  <div class="muted" id="userHint"></div>
 </header>
 
 <!-- Menu overlay -->
@@ -108,6 +104,16 @@
 <div id="menuPanel" class="menuPanel" role="menu">
   <button id="menuHome" class="menuItem"></button>
   <button id="menuScan" class="menuItem"></button>
+
+  <div class="menuSection">
+    <div class="menuTitle" id="menuLangTitle"></div>
+    <select id="lang"></select>
+
+    <div class="menuTitle" id="menuUserTitle"></div>
+    <input id="username" />
+    <button id="confirmUser" class="primary"></button>
+    <div class="muted" id="userHint"></div>
+  </div>
 </div>
 
 <main>
@@ -226,11 +232,11 @@
 <script>
 const ADMIN_NAME = "Andrejs O";
 const STORAGE = {
-  lang: "tires_lang_v7",
-  user: "tires_user_fixed_v7",
-  page: "tires_page_v3",
-  db:   "tires_db_v10",
-  gh:   "tires_global_history_v6",
+  lang: "tires_lang_v8",
+  user: "tires_user_fixed_v8",
+  page: "tires_page_v4",
+  db:   "tires_db_v11",
+  gh:   "tires_global_history_v7",
 };
 
 function loadJSON(key, fallback) {
@@ -243,6 +249,9 @@ const I18N = {
   ru: {
     title:"Учёт шин", home:"Дом", scan:"Сканирование",
     pageHome:"Главная", pageScan:"Сканирование",
+    menuLangTitle:"Язык",
+    menuUserTitle:"Пользователь",
+
     userPh:"Имя пользователя", confirm:"Подтвердить",
     userNeed:"Сначала введи имя пользователя.",
     userLocked:"Имя закреплено за этим устройством.",
@@ -294,6 +303,9 @@ const I18N = {
   de: {
     title:"Reifenverwaltung", home:"Start", scan:"Scannen",
     pageHome:"Startseite", pageScan:"Scannen",
+    menuLangTitle:"Sprache",
+    menuUserTitle:"Benutzer",
+
     userPh:"Benutzername", confirm:"Bestätigen",
     userNeed:"Bitte zuerst einen Benutzernamen eingeben.",
     userLocked:"Name ist an dieses Gerät gebunden.",
@@ -345,6 +357,9 @@ const I18N = {
   lv: {
     title:"Riepu uzskaite", home:"Sākums", scan:"Skenēšana",
     pageHome:"Sākumlapa", pageScan:"Skenēšana",
+    menuLangTitle:"Valoda",
+    menuUserTitle:"Lietotājs",
+
     userPh:"Lietotājvārds", confirm:"Apstiprināt",
     userNeed:"Vispirms ievadi lietotājvārdu.",
     userLocked:"Vārds piesaistīts šai ierīcei.",
@@ -410,16 +425,20 @@ const $ = (id) => document.getElementById(id);
 const el = {
   uiTitle: $("uiTitle"),
   pageSubtitle: $("pageSubtitle"),
-  lang: $("lang"),
-  username: $("username"),
-  confirmUser: $("confirmUser"),
-  userHint: $("userHint"),
 
+  // menu / settings
   menuBtn: $("menuBtn"),
   menuBack: $("menuBack"),
   menuPanel: $("menuPanel"),
   menuHome: $("menuHome"),
   menuScan: $("menuScan"),
+
+  menuLangTitle: $("menuLangTitle"),
+  menuUserTitle: $("menuUserTitle"),
+  lang: $("lang"),
+  username: $("username"),
+  confirmUser: $("confirmUser"),
+  userHint: $("userHint"),
 
   pageHome: $("pageHome"),
   pageScan: $("pageScan"),
@@ -475,6 +494,15 @@ function ensureUser(){
   return false;
 }
 
+function buildLangOptions(){
+  el.lang.innerHTML = `
+    <option value="ru">RU</option>
+    <option value="de">DE</option>
+    <option value="lv">LV</option>
+  `;
+  el.lang.value = lang;
+}
+
 /* Access visibility */
 function applyAccessVisibility(){
   const admin = isAdmin();
@@ -516,6 +544,9 @@ function applyI18n(){
 
   el.menuHome.textContent = t.home;
   el.menuScan.textContent = t.scan;
+
+  el.menuLangTitle.textContent = t.menuLangTitle;
+  el.menuUserTitle.textContent = t.menuUserTitle;
 
   el.username.placeholder = t.userPh;
   el.confirmUser.textContent = t.confirm;
@@ -645,7 +676,6 @@ async function startCamera(){
   if (!ensureUser()) return;
   if (!window.isSecureContext) { alert(T().needHttps); return; }
 
-  // админ — очищаем форму перед новым вводом
   if (isAdmin()) clearForm({ keepEAN:false });
 
   try {
@@ -665,11 +695,9 @@ async function startCamera(){
         if (!v || v === lastScan) return;
         lastScan = v;
 
-        // ВСЕМ: поиск по EAN
         el.search.value = v;
         renderList();
 
-        // АДМИНУ: заполнение формы для добавления
         if (isAdmin()) {
           el.ean.value = v;
           el.maker.value = "";
@@ -772,8 +800,6 @@ function compareItems(a,b,mode){
   if (mode==="model_asc")    return s(a.tireModel).localeCompare(s(b.tireModel),"ru");
   return 0;
 }
-
-// пока нет поиска — список пустой
 function filterItems(items){
   const q = normText(el.search.value).toLowerCase();
   if (!q) return [];
@@ -785,7 +811,6 @@ function filterItems(items){
     String(x.loc||"").toLowerCase().includes(q)
   );
 }
-
 function groupItems(items, mode){
   if (mode==="none") return { [T().all]: items };
   const map = new Map();
@@ -801,7 +826,6 @@ function groupItems(items, mode){
   for (const k of keys) out[k] = map.get(k);
   return out;
 }
-
 function itemCard(it){
   const head = [it.maker, it.tireModel].filter(Boolean).join(" ") || "—";
   const wrap = document.createElement("div");
@@ -855,7 +879,6 @@ function itemCard(it){
   wrap.appendChild(btnRow);
   return wrap;
 }
-
 function renderList(){
   const filtered = filterItems(db.slice());
   filtered.sort((a,b)=>compareItems(a,b,el.sortBy.value));
@@ -873,7 +896,6 @@ function renderList(){
   }
 
   const grouped = groupItems(filtered, el.groupBy.value);
-
   if (el.groupBy.value === "none") {
     const items = grouped[T().all] || filtered;
     for (const it of items) el.list.appendChild(itemCard(it));
@@ -900,7 +922,8 @@ function renderList(){
 
 /* init */
 function initUserUI(){
-  el.lang.value = lang;
+  buildLangOptions();
+
   if (user) {
     el.username.value = user;
     el.username.disabled = true;
@@ -915,6 +938,7 @@ function initUserUI(){
 function bindEvents(){
   el.menuBtn.addEventListener("click", openMenu);
   el.menuBack.addEventListener("click", closeMenu);
+
   el.menuHome.addEventListener("click", () => setPage("home"));
   el.menuScan.addEventListener("click", () => setPage("scan"));
 
