@@ -600,14 +600,14 @@ function ensureUser(){
    Visibility (важно: скрываем недоступное)
 ============================== */
 function applyAccessVisibility(){
-  // Admin sees scanning + form. Others see only list (scan page) + history buttons.
   const admin = isAdmin();
 
+  // Сканирование и форма — только админ
   el.scannerCard.style.display = admin ? "" : "none";
   el.formCard.style.display = admin ? "" : "none";
 
-  // В карточках списка кнопки "Открыть/Удалить" будем показывать только админам (ниже в рендере).
-  // Общая история и история позиции — всем.
+  // Общая история — ТОЛЬКО админ
+  el.openGlobalHistory.style.display = admin ? "" : "none";
 }
 
 /* ==============================
@@ -757,6 +757,7 @@ function showItemHistory(ean){
 }
 
 function showGlobalHistory(){
+  if (!isAdmin()) return;
   const entries = Array.isArray(globalHistory) ? globalHistory : [];
   const html = renderHistoryEntries(entries, (h) => {
     if (h.action === "create") return T().created;
