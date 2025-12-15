@@ -16,7 +16,7 @@
     .muted{font-size:13px;opacity:.8;margin-top:8px;line-height:1.35;}
     .small{font-size:13px;opacity:.9;line-height:1.35;}
 
-    .card{background:#12141a;border:1px solid #23262f;border-radius:14px;padding:14px;}
+    .card{background:#12141a;border:1px solid #23262f;border-radius:14px;padding:14px;margin:16px;}
     label{font-size:12px;opacity:.85;display:block;margin-top:10px;}
 
     input,select,button{
@@ -50,10 +50,9 @@
     .histMeta{font-size:13px;opacity:.9;}
     .histLine{margin-top:6px;font-size:13px;line-height:1.35;}
 
-    /* Home */
-    main{padding:0;display:block;}
+    /* Home full */
     .homeFull{width:100%;height:calc(100vh - 58px);display:flex;align-items:center;justify-content:center;background:#0e1016;}
-    .homeLogo{width:90%;height:90%;object-fit:contain;display:block;}
+    .homeLogo{width:100%;height:100%;object-fit:contain;display:block;}
 
     /* Menu */
     .menuBtn{
@@ -113,14 +112,14 @@
 <main>
 
   <!-- HOME PAGE -->
-<section id="pageHome" class="homeFull" style="display:none;">
-  <img class="homeLogo" src="logo.png" alt="Logo">
-</section>
+  <section id="pageHome" class="homeFull" style="display:none;">
+    <img class="homeLogo" src="logo.png" alt="Logo">
+  </section>
 
   <!-- SCAN PAGE -->
-  <div id="pageScan" style="display:none; display:grid; gap:14px;">
+  <div id="pageScan" style="display:none;">
 
-    <!-- Scanner (ADMIN ONLY) -->
+    <!-- Scanner (ALL USERS; admin uses for add, users for search) -->
     <section id="scannerCard" class="card" style="display:none;">
       <div class="row" style="align-items:flex-start;">
         <div class="col"><button id="start" class="primary" style="margin-top:0;"></button></div>
@@ -170,7 +169,7 @@
       <div class="muted" id="rightsHint"></div>
     </section>
 
-    <!-- List (ALL USERS) -->
+    <!-- List -->
     <section class="card">
       <div class="row" style="align-items:center;">
         <div class="col"><b id="listTitle"></b></div>
@@ -225,16 +224,13 @@
 </div>
 
 <script>
-/* ==============================
-   Config / storage
-============================== */
 const ADMIN_NAME = "Andrejs O";
 const STORAGE = {
-  lang: "tires_lang_v5",
-  user: "tires_user_fixed_v5",
-  page: "tires_page_v1",
-  db:   "tires_db_v8",
-  gh:   "tires_global_history_v4",
+  lang: "tires_lang_v6",
+  user: "tires_user_fixed_v6",
+  page: "tires_page_v2",
+  db:   "tires_db_v9",
+  gh:   "tires_global_history_v5",
 };
 
 function loadJSON(key, fallback) {
@@ -248,9 +244,6 @@ function saveJSON(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
-/* ==============================
-   i18n
-============================== */
 const I18N = {
   ru: {
     title: "Учёт шин",
@@ -273,7 +266,7 @@ const I18N = {
     camOn: "Камера включена. Наведи на штрих-код…",
     found: "Найдено",
     autoOff: "(камера выключается)",
-    scanHint: "После успешного скана камера выключится, форма очистится (кроме EAN).",
+    scanHint: "Скан: админ заполняет форму, пользователь — ищет позицию по EAN.",
 
     ean: "Штрих-код (EAN)",
     eanPh: "сканируется автоматически",
@@ -311,6 +304,7 @@ const I18N = {
     total: "Всего записей",
     shown: "Показано",
     nothing: "Ничего не найдено.",
+    promptSearch: "Введите поиск или отсканируйте штрих-код.",
     all: "Все",
     noLoc: "Без локации",
     noMaker: "Без марки",
@@ -356,7 +350,7 @@ const I18N = {
     camOn: "Kamera an. Auf den Barcode richten…",
     found: "Gefunden",
     autoOff: "(Kamera wird beendet)",
-    scanHint: "Nach einem erfolgreichen Scan wird die Kamera beendet und das Formular geleert (EAN bleibt).",
+    scanHint: "Scan: Admin füllt das Formular, Benutzer sucht per EAN.",
 
     ean: "Barcode (EAN)",
     eanPh: "wird automatisch gescannt",
@@ -394,6 +388,7 @@ const I18N = {
     total: "Einträge gesamt",
     shown: "Angezeigt",
     nothing: "Keine Treffer.",
+    promptSearch: "Bitte suchen oder Barcode scannen.",
     all: "Alle",
     noLoc: "Ohne Lagerplatz",
     noMaker: "Ohne Hersteller",
@@ -439,7 +434,7 @@ const I18N = {
     camOn: "Kamera ieslēgta. Tēmē uz svītrkodu…",
     found: "Atrasts",
     autoOff: "(kamera izslēdzas)",
-    scanHint: "Pēc veiksmīga skenējuma kamera izslēdzas un forma tiek notīrīta (EAN paliek).",
+    scanHint: "Skenē: admins aizpilda formu, lietotājs meklē pēc EAN.",
 
     ean: "Svītrkods (EAN)",
     eanPh: "tiek noskenēts automātiski",
@@ -477,6 +472,7 @@ const I18N = {
     total: "Kopā ieraksti",
     shown: "Parādīts",
     nothing: "Nav rezultātu.",
+    promptSearch: "Lūdzu, meklē vai noskenē svītrkodu.",
     all: "Visi",
     noLoc: "Bez vietas",
     noMaker: "Bez ražotāja",
@@ -502,15 +498,11 @@ const I18N = {
   }
 };
 
-/* ==============================
-   State
-============================== */
 let lang = loadJSON(STORAGE.lang, "ru");
 if (!I18N[lang]) lang = "ru";
 
 let user = loadJSON(STORAGE.user, "");
 let page = loadJSON(STORAGE.page, "home"); // "home" | "scan"
-
 let db = loadJSON(STORAGE.db, []);
 let globalHistory = loadJSON(STORAGE.gh, []);
 
@@ -518,9 +510,6 @@ let scanner = null;
 let scanning = false;
 let lastScan = "";
 
-/* ==============================
-   DOM
-============================== */
 const $ = (id) => document.getElementById(id);
 const el = {
   uiTitle: $("uiTitle"),
@@ -530,23 +519,19 @@ const el = {
   confirmUser: $("confirmUser"),
   userHint: $("userHint"),
 
-  // menu
   menuBtn: $("menuBtn"),
   menuBack: $("menuBack"),
   menuPanel: $("menuPanel"),
   menuHome: $("menuHome"),
   menuScan: $("menuScan"),
 
-  // pages
   pageHome: $("pageHome"),
   pageScan: $("pageScan"),
   scannerCard: $("scannerCard"),
   formCard: $("formCard"),
 
-  // scanner/form
   start: $("start"),
   stop: $("stop"),
-  reader: $("reader"),
   status: $("status"),
   scanHint: $("scanHint"),
 
@@ -566,7 +551,6 @@ const el = {
   clear: $("clear"),
   rightsHint: $("rightsHint"),
 
-  // list
   listTitle: $("listTitle"),
   openGlobalHistory: $("openGlobalHistory"),
   search: $("search"),
@@ -577,7 +561,6 @@ const el = {
   stats: $("stats"),
   list: $("list"),
 
-  // modal
   modalBack: $("modalBack"),
   modalTitle: $("modalTitle"),
   modalBody: $("modalBody"),
@@ -596,39 +579,34 @@ function ensureUser(){
   return false;
 }
 
-/* ==============================
-   Visibility (важно: скрываем недоступное)
-============================== */
+/* Access visibility */
 function applyAccessVisibility(){
   const admin = isAdmin();
 
-  // Сканирование и форма — только админ
-  el.scannerCard.style.display = admin ? "" : "none";
+  // Камера — ВСЕМ (админ: для заполнения, пользователь: для поиска)
+  el.scannerCard.style.display = "";
+
+  // Форма — ТОЛЬКО админ
   el.formCard.style.display = admin ? "" : "none";
 
   // Общая история — ТОЛЬКО админ
   el.openGlobalHistory.style.display = admin ? "" : "none";
 }
 
-/* ==============================
-   Pages / Menu
-============================== */
+/* Pages / menu */
 function setPage(next){
   page = next;
   saveJSON(STORAGE.page, page);
 
   const t = T();
   el.pageHome.style.display = (page === "home") ? "" : "none";
-  el.pageScan.style.display = (page === "scan") ? "grid" : "none";
+  el.pageScan.style.display = (page === "scan") ? "block" : "none";
   el.pageSubtitle.textContent = (page === "home") ? t.pageHome : t.pageScan;
 
-  // menu active
   el.menuHome.classList.toggle("active", page === "home");
   el.menuScan.classList.toggle("active", page === "scan");
 
   closeMenu();
-
-  // если ушли со страницы сканирования — выключаем камеру
   if (page !== "scan") stopCamera().catch(()=>{});
 }
 
@@ -641,30 +619,23 @@ function closeMenu(){
   el.menuPanel.style.display = "none";
 }
 
-/* ==============================
-   i18n apply
-============================== */
+/* i18n */
 function applyI18n(){
   const t = T();
-
   el.uiTitle.textContent = t.title;
 
-  // menu labels
   el.menuHome.textContent = t.home;
   el.menuScan.textContent = t.scan;
 
-  // user
   el.username.placeholder = t.userPh;
   el.confirmUser.textContent = t.confirm;
   el.userHint.textContent = user ? t.userLocked : t.userNeed;
 
-  // scanner
   el.start.textContent = t.start;
   el.stop.textContent = t.stop;
   el.status.textContent = scanning ? t.camOn : t.camOff;
   el.scanHint.textContent = t.scanHint;
 
-  // form
   el.lblEan.textContent = t.ean; el.ean.placeholder = t.eanPh;
   el.lblMaker.textContent = t.maker; el.maker.placeholder = t.makerPh;
   el.lblTireModel.textContent = t.tireModel; el.tireModel.placeholder = t.tireModelPh;
@@ -677,7 +648,6 @@ function applyI18n(){
 
   el.rightsHint.textContent = user ? (isAdmin() ? t.rightsAdmin : t.rightsUser) : "";
 
-  // list
   el.listTitle.textContent = t.listTitle;
   el.openGlobalHistory.textContent = t.openGlobalHistory;
   el.search.placeholder = t.searchPh;
@@ -696,16 +666,11 @@ function applyI18n(){
   el.sortBy.options[4].text = t.sortMaker;
   el.sortBy.options[5].text = t.sortModel;
 
-  // modal
   el.modalClose.textContent = t.close;
-
-  // page subtitle
   el.pageSubtitle.textContent = (page === "home") ? t.pageHome : t.pageScan;
 }
 
-/* ==============================
-   History helpers
-============================== */
+/* History */
 function diffItem(prev, next){
   const fields = ["maker","tireModel","size","loc","qty"];
   const changes = [];
@@ -722,9 +687,7 @@ function pushGlobalHistory(action, ean, changes){
   saveJSON(STORAGE.gh, globalHistory);
 }
 
-/* ==============================
-   Modal
-============================== */
+/* Modal */
 function openModal(title, html){
   el.modalTitle.textContent = title;
   el.modalBody.innerHTML = html;
@@ -748,14 +711,12 @@ function renderHistoryEntries(entries, labelFn){
     return `<div class="histItem"><div class="histMeta">${ts} • ${h.user || "—"} • ${label}</div>${lines}</div>`;
   }).join("");
 }
-
 function showItemHistory(ean){
   const it = db.find(x => x.ean === ean);
   const entries = (it && Array.isArray(it.history)) ? it.history : [];
   const html = renderHistoryEntries(entries, (h) => (h.type === "create") ? T().created : T().updated);
   openModal(`${T().histTitleItem}: ${ean}`, html);
 }
-
 function showGlobalHistory(){
   if (!isAdmin()) return;
   const entries = Array.isArray(globalHistory) ? globalHistory : [];
@@ -767,9 +728,7 @@ function showGlobalHistory(){
   openModal(T().histTitleGlobal, html || `<div class="muted">${T().nothing}</div>`);
 }
 
-/* ==============================
-   Camera (ADMIN ONLY actions)
-============================== */
+/* Camera */
 function clearForm({ keepEAN=false } = {}){
   const keep = el.ean.value;
   el.ean.value = keepEAN ? keep : "";
@@ -794,10 +753,10 @@ async function stopCamera(){
 
 async function startCamera(){
   if (!ensureUser()) return;
-  if (!isAdmin()) { alert(T().cantEdit); return; } // только админ вообще может сканировать
   if (!window.isSecureContext) { alert(T().needHttps); return; }
 
-  clearForm({ keepEAN:false });
+  // админ: чистим форму; пользователь: не трогаем форму (её нет)
+  if (isAdmin()) clearForm({ keepEAN:false });
 
   try {
     scanner = new Html5Qrcode("reader");
@@ -816,16 +775,25 @@ async function startCamera(){
         if (!v || v === lastScan) return;
         lastScan = v;
 
-        el.ean.value = v;
-        el.maker.value = "";
-        el.tireModel.value = "";
-        el.size.value = "";
-        el.loc.value = "";
-        el.qty.value = "";
-
-        el.status.textContent = `${T().found}: ${v} ${T().autoOff}`;
-        await stopCamera();
-        el.maker.focus();
+        if (isAdmin()) {
+          // Админ: заполняем форму
+          el.ean.value = v;
+          el.maker.value = "";
+          el.tireModel.value = "";
+          el.size.value = "";
+          el.loc.value = "";
+          el.qty.value = "";
+          el.status.textContent = `${T().found}: ${v} ${T().autoOff}`;
+          await stopCamera();
+          el.maker.focus();
+        } else {
+          // Пользователь: поиск по EAN
+          el.search.value = v;
+          renderList();
+          el.status.textContent = `${T().found}: ${v} ${T().autoOff}`;
+          await stopCamera();
+          el.list.scrollIntoView({ behavior:"smooth", block:"start" });
+        }
       },
       () => {}
     );
@@ -836,12 +804,10 @@ async function startCamera(){
   }
 }
 
-/* ==============================
-   Admin-only save / delete / open
-============================== */
+/* Admin-only save/delete/open */
 function upsertItemFromForm(){
   if (!ensureUser()) return;
-  if (!isAdmin()) { alert(T().cantEdit); return; } // только админ может добавлять/редактировать
+  if (!isAdmin()) { alert(T().cantEdit); return; }
 
   const ean = normEAN(el.ean.value);
   if (!ean) { alert(T().noEan); return; }
@@ -898,7 +864,6 @@ function deleteItem(ean){
 }
 
 function fillFormFromItem(it){
-  // только админ вообще видит кнопку "Открыть", поэтому тут без доп. проверок
   el.ean.value = it.ean || "";
   el.maker.value = it.maker || "";
   el.tireModel.value = it.tireModel || "";
@@ -908,9 +873,7 @@ function fillFormFromItem(it){
   window.scrollTo({ top:0, behavior:"smooth" });
 }
 
-/* ==============================
-   List: filter/sort/group
-============================== */
+/* List: filter/sort/group */
 function compareItems(a,b,mode){
   const s = (x)=>String(x||"");
   if (mode==="updated_desc") return (b.updatedAt||0)-(a.updatedAt||0);
@@ -921,9 +884,11 @@ function compareItems(a,b,mode){
   if (mode==="model_asc")    return s(a.tireModel).localeCompare(s(b.tireModel),"ru");
   return 0;
 }
+
+// ВАЖНО: пока нет поиска — список пустой
 function filterItems(items){
   const q = normText(el.search.value).toLowerCase();
-  if (!q) return items;
+  if (!q) return [];
   return items.filter(x =>
     String(x.ean||"").toLowerCase().includes(q) ||
     String(x.maker||"").toLowerCase().includes(q) ||
@@ -932,6 +897,7 @@ function filterItems(items){
     String(x.loc||"").toLowerCase().includes(q)
   );
 }
+
 function groupItems(items, mode){
   if (mode==="none") return { [T().all]: items };
   const map = new Map();
@@ -968,14 +934,12 @@ function itemCard(it){
   btnRow.style.marginTop = "10px";
   btnRow.style.gap = "8px";
 
-  // История — всем
   const histBtn = document.createElement("button");
   histBtn.className = "ghost";
   histBtn.style.marginTop = "0";
   histBtn.textContent = T().hist;
   histBtn.onclick = () => showItemHistory(it.ean);
 
-  // Админ видит "Открыть" и "Удалить". Остальные вообще не видят эти кнопки.
   if (isAdmin()) {
     const openBtn = document.createElement("button");
     openBtn.className = "primary";
@@ -994,7 +958,6 @@ function itemCard(it){
     const c3 = document.createElement("div"); c3.className = "col"; c3.appendChild(delBtn);
     btnRow.appendChild(c1); btnRow.appendChild(c2); btnRow.appendChild(c3);
   } else {
-    // Только одна кнопка "История" (по центру)
     const c = document.createElement("div");
     c.className = "col";
     c.appendChild(histBtn);
@@ -1010,13 +973,13 @@ function renderList(){
   filtered.sort((a,b)=>compareItems(a,b,el.sortBy.value));
 
   const q = normText(el.search.value);
-  el.stats.textContent = `${T().total}: ${db.length}` + (q ? ` • ${T().shown}: ${filtered.length}` : "");
+  el.stats.textContent = q ? `${T().shown}: ${filtered.length}` : "";
 
   el.list.innerHTML = "";
   if (!filtered.length) {
     const empty = document.createElement("div");
     empty.className = "muted";
-    empty.textContent = T().nothing;
+    empty.textContent = q ? T().nothing : (T().promptSearch || T().nothing);
     el.list.appendChild(empty);
     return;
   }
@@ -1047,9 +1010,7 @@ function renderList(){
   }
 }
 
-/* ==============================
-   Init / events
-============================== */
+/* init */
 function initUserUI(){
   el.lang.value = lang;
   if (user) {
@@ -1064,22 +1025,19 @@ function initUserUI(){
 }
 
 function bindEvents(){
-  // menu
   el.menuBtn.addEventListener("click", openMenu);
   el.menuBack.addEventListener("click", closeMenu);
   el.menuHome.addEventListener("click", () => setPage("home"));
   el.menuScan.addEventListener("click", () => setPage("scan"));
 
-  // lang
   el.lang.addEventListener("change", () => {
     lang = el.lang.value;
     saveJSON(STORAGE.lang, lang);
     applyI18n();
     renderList();
-    setPage(page); // обновит подписи меню/подзаголовок
+    setPage(page);
   });
 
-  // user confirm
   el.confirmUser.addEventListener("click", () => {
     const v = normText(el.username.value);
     if (!v) { alert(T().userNeed); return; }
@@ -1087,21 +1045,18 @@ function bindEvents(){
     location.reload();
   });
 
-  // camera (admin-only is enforced inside)
   el.start.addEventListener("click", startCamera);
   el.stop.addEventListener("click", stopCamera);
 
-  // form
   el.clear.addEventListener("click", () => { clearForm({ keepEAN:false }); el.ean.focus(); });
   el.save.addEventListener("click", upsertItemFromForm);
 
-  // list
   el.openGlobalHistory.addEventListener("click", showGlobalHistory);
+
   el.search.addEventListener("input", renderList);
   el.groupBy.addEventListener("change", renderList);
   el.sortBy.addEventListener("change", renderList);
 
-  // modal
   el.modalClose.addEventListener("click", closeModal);
   el.modalBack.addEventListener("click", (e) => { if (e.target === el.modalBack) closeModal(); });
 }
@@ -1111,7 +1066,6 @@ function boot(){
   applyI18n();
   applyAccessVisibility();
 
-  // default page: home
   if (page !== "home" && page !== "scan") page = "home";
   setPage(page);
 
