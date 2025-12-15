@@ -311,6 +311,7 @@ const I18N = {
     total: "Всего записей",
     shown: "Показано",
     nothing: "Ничего не найдено.",
+    promptSearch: "Введите поиск или отсканируйте штрих-код.",
     all: "Все",
     noLoc: "Без локации",
     noMaker: "Без марки",
@@ -394,6 +395,7 @@ const I18N = {
     total: "Einträge gesamt",
     shown: "Angezeigt",
     nothing: "Keine Treffer.",
+    promptSearch: "Bitte suchen oder Barcode scannen.",
     all: "Alle",
     noLoc: "Ohne Lagerplatz",
     noMaker: "Ohne Hersteller",
@@ -477,6 +479,7 @@ const I18N = {
     total: "Kopā ieraksti",
     shown: "Parādīts",
     nothing: "Nav rezultātu.",
+    promptSearch: "Lūdzu, meklē vai noskenē svītrkodu.",
     all: "Visi",
     noLoc: "Bez vietas",
     noMaker: "Bez ražotāja",
@@ -602,11 +605,13 @@ function ensureUser(){
 function applyAccessVisibility(){
   const admin = isAdmin();
 
-  // Сканирование и форма — только админ
-  el.scannerCard.style.display = admin ? "" : "none";
+  // Камера доступна ВСЕМ (для поиска)
+  el.scannerCard.style.display = "";
+
+  // Форма добавления/редактирования — только админ
   el.formCard.style.display = admin ? "" : "none";
 
-  // Общая история — ТОЛЬКО админ
+  // Общая история — только админ (если ты уже это делал)
   el.openGlobalHistory.style.display = admin ? "" : "none";
 }
 
@@ -794,7 +799,6 @@ async function stopCamera(){
 
 async function startCamera(){
   if (!ensureUser()) return;
-  if (!isAdmin()) { alert(T().cantEdit); return; } // только админ вообще может сканировать
   if (!window.isSecureContext) { alert(T().needHttps); return; }
 
   clearForm({ keepEAN:false });
@@ -812,27 +816,30 @@ async function startCamera(){
       { facingMode:"environment" },
       { fps:12, qrbox:{ width:260, height:160 }, experimentalFeatures:{ useBarCodeDetectorIfSupported:false } },
       async (text) => {
-        const v = normEAN(text);
-        if (!v || v === lastScan) return;
-        lastScan = v;
+  const v = normEAN(text);
+  if (!v || v === lastScan) return;
+  lastScan = v;
 
-        el.ean.value = v;
-        el.maker.value = "";
-        el.tireModel.value = "";
-        el.size.value = "";
-        el.loc.value = "";
-        el.qty.value = "";
-
-        el.status.textContent = `${T().found}: ${v} ${T().autoOff}`;
-        await stopCamera();
-        el.maker.focus();
-      },
-      () => {}
-    );
-  } catch (e) {
-    console.error(e);
-    alert(T().camFail);
+  if (isAdmin()) {
+    // Админ: заполняем форму как раньше
+    el.ean.value = v;
+    el.maker.value = "";
+    el.tireModel.value = "";
+    el.size.value = "";
+    el.loc.value = "";
+    el.qty.value = "";
+    el.status.textContent = `${T().found}: ${v} ${T().autoOff}`;
     await stopCamera();
+    el.maker.focus();
+  } else {
+    // Пользователь: это ПОИСК
+    el.search.value = v;     // если EAN — покажет конкретную позицию
+    renderList();            // покажет найденное
+    el.status.textContent = `${T().found}: ${v} ${T().autoOff}`;
+    await stopCamera();
+
+    // прокрутим к списку
+    el.list.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 }
 
@@ -923,7 +930,10 @@ function compareItems(a,b,mode){
 }
 function filterItems(items){
   const q = normText(el.search.value).toLowerCase();
-  if (!q) return items;
+
+  // ВАЖНО: если нет поиска — ничего не показываем
+  if (!q) return [];
+
   return items.filter(x =>
     String(x.ean||"").toLowerCase().includes(q) ||
     String(x.maker||"").toLowerCase().includes(q) ||
@@ -1014,12 +1024,15 @@ function renderList(){
 
   el.list.innerHTML = "";
   if (!filtered.length) {
-    const empty = document.createElement("div");
-    empty.className = "muted";
-    empty.textContent = T().nothing;
-    el.list.appendChild(empty);
-    return;
-  }
+  const empty = document.createElement("div");
+  empty.className = "muted";
+
+  // Если поиск пустой — подсказка. Если поиск есть, но результатов нет — "ничего не найдено"
+  empty.textContent = normText(el.search.value) ? T().nothing : T().promptSearch;
+
+  el.list.appendChild(empty);
+  return;
+}
 
   const grouped = groupItems(filtered, el.groupBy.value);
 
