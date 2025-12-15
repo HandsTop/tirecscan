@@ -28,6 +28,7 @@
     .primary{background:#1b3cff;}
     .danger{background:#5a1a1a;}
     .ghost{background:#0e1016;border:1px solid #2a2f3a;}
+
     #reader{width:100%;border-radius:14px;overflow:hidden;background:#000;border:1px solid #23262f;margin-top:12px;}
 
     .toolbar{display:grid;gap:10px;margin-top:10px;}
@@ -110,7 +111,6 @@
 </div>
 
 <main>
-
   <!-- HOME PAGE -->
   <section id="pageHome" class="homeFull" style="display:none;">
     <img class="homeLogo" src="logo.png" alt="Logo">
@@ -118,18 +118,6 @@
 
   <!-- SCAN PAGE -->
   <div id="pageScan" style="display:none;">
-
-    <!-- Scanner (ALL USERS; admin uses for add, users for search) -->
-    <section id="scannerCard" class="card" style="display:none;">
-      <div class="row" style="align-items:flex-start;">
-        <div class="col"><button id="start" class="primary" style="margin-top:0;"></button></div>
-        <div class="col"><button id="stop" class="danger" style="margin-top:0;" disabled></button></div>
-      </div>
-
-      <div id="reader"></div>
-      <div class="muted" id="status"></div>
-      <div class="muted" id="scanHint"></div>
-    </section>
 
     <!-- Form (ADMIN ONLY) -->
     <section id="formCard" class="card" style="display:none;">
@@ -169,7 +157,7 @@
       <div class="muted" id="rightsHint"></div>
     </section>
 
-    <!-- List -->
+    <!-- List (CAMERA INSIDE HERE) -->
     <section class="card">
       <div class="row" style="align-items:center;">
         <div class="col"><b id="listTitle"></b></div>
@@ -178,12 +166,19 @@
         </div>
       </div>
 
+      <!-- Scanner (ALL USERS, for search; admin also fills form) -->
+      <section id="scannerCard" class="card" style="display:none;margin:12px 0 0 0;">
+        <div class="row" style="align-items:flex-start;">
+          <div class="col"><button id="start" class="primary" style="margin-top:0;"></button></div>
+          <div class="col"><button id="stop" class="danger" style="margin-top:0;" disabled></button></div>
+        </div>
+
+        <div id="reader"></div>
+        <div class="muted" id="status"></div>
+        <div class="muted" id="scanHint"></div>
+      </section>
+
       <div class="toolbar">
-        <div id="searchScanner" class="card" style="display:none;margin-top:10px;">
-  <button id="startSearchScan" class="primary" style="margin-top:0;"></button>
-  <div id="readerSearch" style="margin-top:10px;"></div>
-  <div class="muted" id="searchScanStatus"></div>
-      </div>
         <input id="search" />
 
         <div class="row">
@@ -231,284 +226,171 @@
 <script>
 const ADMIN_NAME = "Andrejs O";
 const STORAGE = {
-  lang: "tires_lang_v6",
-  user: "tires_user_fixed_v6",
-  page: "tires_page_v2",
-  db:   "tires_db_v9",
-  gh:   "tires_global_history_v5",
+  lang: "tires_lang_v7",
+  user: "tires_user_fixed_v7",
+  page: "tires_page_v3",
+  db:   "tires_db_v10",
+  gh:   "tires_global_history_v6",
 };
 
 function loadJSON(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw);
-  } catch { return fallback; }
+  try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; }
+  catch { return fallback; }
 }
-function saveJSON(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
-}
+function saveJSON(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
 
 const I18N = {
   ru: {
-    title: "Учёт шин",
-    home: "Дом",
-    scan: "Сканирование",
+    title:"Учёт шин", home:"Дом", scan:"Сканирование",
+    pageHome:"Главная", pageScan:"Сканирование",
+    userPh:"Имя пользователя", confirm:"Подтвердить",
+    userNeed:"Сначала введи имя пользователя.",
+    userLocked:"Имя закреплено за этим устройством.",
+    rightsAdmin:"Права: админ (добавление/редактирование/удаление).",
+    rightsUser:"Права: просмотр (история доступна).",
 
-    pageHome: "Главная",
-    pageScan: "Сканирование",
+    start:"Включить камеру", stop:"Выключить",
+    camOff:"Камера выключена",
+    camOn:"Камера включена. Наведи на штрих-код…",
+    found:"Найдено", autoOff:"(камера выключается)",
+    scanHint:"Скан всегда ищет по EAN. Админ дополнительно заполняет форму.",
 
-    userPh: "Имя пользователя",
-    confirm: "Подтвердить",
-    userNeed: "Сначала введи имя пользователя.",
-    userLocked: "Имя закреплено за этим устройством.",
-    rightsAdmin: "Права: админ (добавление/редактирование/удаление).",
-    rightsUser: "Права: просмотр (история доступна).",
+    ean:"Штрих-код (EAN)", eanPh:"сканируется автоматически",
+    maker:"Марка", makerPh:"например Nexen",
+    tireModel:"Модель", tireModelPh:"например WinGuard WT1",
+    size:"Размер", sizePh:"например 195/65 R16 104/102T",
+    loc:"Локация", locPh:"например 216",
+    qty:"Кол-во", qtyPh:"например 34",
 
-    start: "Включить камеру",
-    stop: "Выключить",
-    camOff: "Камера выключена",
-    camOn: "Камера включена. Наведи на штрих-код…",
-    found: "Найдено",
-    autoOff: "(камера выключается)",
-    scanHint: "Скан: админ заполняет форму, пользователь — ищет позицию по EAN.",
+    save:"Сохранить", clear:"Очистить",
+    listTitle:"Список шин",
+    openGlobalHistory:"Общая история",
+    searchPh:"Поиск: EAN, марка, модель, размер, локация",
 
-    startSearchScan: "Сканировать для поиска",
-    searchScanHint: "Сканируй штрих-код — позиция будет найдена автоматически",
+    group:"Группировка", sort:"Сортировка",
+    groupLoc:"По локации", groupMaker:"По марке", groupNone:"Без группировки",
+    sortNew:"Сначала новые", sortOld:"Сначала старые", sortQty:"Кол-во ↓",
+    sortLoc:"Локация A→Z", sortMaker:"Марка A→Z", sortModel:"Модель A→Z",
 
-    ean: "Штрих-код (EAN)",
-    eanPh: "сканируется автоматически",
-    maker: "Марка",
-    makerPh: "например Nexen",
-    tireModel: "Модель",
-    tireModelPh: "например WinGuard WT1",
-    size: "Размер",
-    sizePh: "например 195/65 R16 104/102T",
-    loc: "Локация",
-    locPh: "например 216",
-    qty: "Кол-во",
-    qtyPh: "например 34",
+    shown:"Показано", nothing:"Ничего не найдено.",
+    promptSearch:"Введите поиск или отсканируйте штрих-код.",
+    all:"Все", noLoc:"Без локации", noMaker:"Без марки",
 
-    save: "Сохранить",
-    clear: "Очистить",
+    hist:"История", del:"Удалить", open:"Открыть",
+    delConfirm:"Удалить запись?",
+    noEan:"Нет EAN (штрих-кода).",
+    badQty:"Кол-во должно быть числом (0 или больше).",
+    needHttps:"Нужно HTTPS (GitHub Pages). Открой страницу по ссылке https://...",
+    camFail:"Не удалось включить камеру. Проверь разрешение: Настройки → Safari → Камера.",
+    cantEdit:"Доступ запрещён (только Andrejs O).",
 
-    listTitle: "Список шин",
-    openGlobalHistory: "Общая история",
-    searchPh: "Поиск: EAN, марка, модель, размер, локация",
-
-    group: "Группировка",
-    sort: "Сортировка",
-    groupLoc: "По локации",
-    groupMaker: "По марке",
-    groupNone: "Без группировки",
-
-    sortNew: "Сначала новые",
-    sortOld: "Сначала старые",
-    sortQty: "Кол-во ↓",
-    sortLoc: "Локация A→Z",
-    sortMaker: "Марка A→Z",
-    sortModel: "Модель A→Z",
-
-    total: "Всего записей",
-    shown: "Показано",
-    nothing: "Ничего не найдено.",
-    promptSearch: "Введите поиск или отсканируйте штрих-код.",
-    all: "Все",
-    noLoc: "Без локации",
-    noMaker: "Без марки",
-
-    hist: "История",
-    del: "Удалить",
-    open: "Открыть",
-
-    delConfirm: "Удалить запись?",
-    noEan: "Нет EAN (штрих-кода).",
-    badQty: "Кол-во должно быть числом (0 или больше).",
-    needHttps: "Нужно HTTPS (GitHub Pages). Открой страницу по ссылке https://...",
-    camFail: "Не удалось включить камеру. Проверь разрешение: Настройки → Safari → Камера.",
-    cantEdit: "Доступ запрещён (только Andrejs O).",
-
-    histTitleItem: "История позиции",
-    histTitleGlobal: "Общая история действий",
-    close: "Закрыть",
-    created: "Создано",
-    updated: "Изменено",
-    deleted: "Удалено",
-    field: { maker:"Марка", tireModel:"Модель", size:"Размер", loc:"Локация", qty:"Кол-во" }
+    histTitleItem:"История позиции",
+    histTitleGlobal:"Общая история действий",
+    close:"Закрыть",
+    created:"Создано", updated:"Изменено", deleted:"Удалено",
+    field:{ maker:"Марка", tireModel:"Модель", size:"Размер", loc:"Локация", qty:"Кол-во" }
   },
 
   de: {
-    title: "Reifenverwaltung",
-    home: "Start",
-    scan: "Scannen",
+    title:"Reifenverwaltung", home:"Start", scan:"Scannen",
+    pageHome:"Startseite", pageScan:"Scannen",
+    userPh:"Benutzername", confirm:"Bestätigen",
+    userNeed:"Bitte zuerst einen Benutzernamen eingeben.",
+    userLocked:"Name ist an dieses Gerät gebunden.",
+    rightsAdmin:"Rolle: Admin (Anlegen/Bearbeiten/Löschen).",
+    rightsUser:"Rolle: Ansicht (Verlauf verfügbar).",
 
-    pageHome: "Startseite",
-    pageScan: "Scannen",
+    start:"Kamera starten", stop:"Stop",
+    camOff:"Kamera aus",
+    camOn:"Kamera an. Auf den Barcode richten…",
+    found:"Gefunden", autoOff:"(Kamera wird beendet)",
+    scanHint:"Scan sucht immer per EAN. Admin füllt zusätzlich das Formular.",
 
-    userPh: "Benutzername",
-    confirm: "Bestätigen",
-    userNeed: "Bitte zuerst einen Benutzernamen eingeben.",
-    userLocked: "Name ist an dieses Gerät gebunden.",
-    rightsAdmin: "Rolle: Admin (Anlegen/Bearbeiten/Löschen).",
-    rightsUser: "Rolle: Ansicht (Verlauf verfügbar).",
+    ean:"Barcode (EAN)", eanPh:"wird automatisch gescannt",
+    maker:"Hersteller", makerPh:"z. B. Nexen",
+    tireModel:"Modell", tireModelPh:"z. B. WinGuard WT1",
+    size:"Größe", sizePh:"z. B. 195/65 R16 104/102T",
+    loc:"Lagerplatz", locPh:"z. B. 216",
+    qty:"Menge", qtyPh:"z. B. 34",
 
-    start: "Kamera starten",
-    stop: "Stop",
-    camOff: "Kamera aus",
-    camOn: "Kamera an. Auf den Barcode richten…",
-    found: "Gefunden",
-    autoOff: "(Kamera wird beendet)",
-    scanHint: "Scan: Admin füllt das Formular, Benutzer sucht per EAN.",
+    save:"Speichern", clear:"Leeren",
+    listTitle:"Reifenliste",
+    openGlobalHistory:"Globaler Verlauf",
+    searchPh:"Suche: EAN, Hersteller, Modell, Größe, Lagerplatz",
 
-    startSearchScan: "Zum Suchen scannen",
-    searchScanHint: "Barcode scannen – Position wird automatisch gefunden",
+    group:"Gruppierung", sort:"Sortierung",
+    groupLoc:"Nach Lagerplatz", groupMaker:"Nach Hersteller", groupNone:"Keine Gruppierung",
+    sortNew:"Neueste zuerst", sortOld:"Älteste zuerst", sortQty:"Menge ↓",
+    sortLoc:"Lagerplatz A→Z", sortMaker:"Hersteller A→Z", sortModel:"Modell A→Z",
 
-    ean: "Barcode (EAN)",
-    eanPh: "wird automatisch gescannt",
-    maker: "Hersteller",
-    makerPh: "z. B. Nexen",
-    tireModel: "Modell",
-    tireModelPh: "z. B. WinGuard WT1",
-    size: "Größe",
-    sizePh: "z. B. 195/65 R16 104/102T",
-    loc: "Lagerplatz",
-    locPh: "z. B. 216",
-    qty: "Menge",
-    qtyPh: "z. B. 34",
+    shown:"Angezeigt", nothing:"Keine Treffer.",
+    promptSearch:"Bitte suchen oder Barcode scannen.",
+    all:"Alle", noLoc:"Ohne Lagerplatz", noMaker:"Ohne Hersteller",
 
-    save: "Speichern",
-    clear: "Leeren",
+    hist:"Verlauf", del:"Löschen", open:"Öffnen",
+    delConfirm:"Eintrag löschen?",
+    noEan:"EAN fehlt.",
+    badQty:"Menge muss eine Zahl sein (0 oder mehr).",
+    needHttps:"HTTPS erforderlich (GitHub Pages). Öffne die Seite über https://…",
+    camFail:"Kamera konnte nicht gestartet werden. Prüfe: Einstellungen → Safari → Kamera.",
+    cantEdit:"Nicht erlaubt (nur Andrejs O).",
 
-    listTitle: "Reifenliste",
-    openGlobalHistory: "Globaler Verlauf",
-    searchPh: "Suche: EAN, Hersteller, Modell, Größe, Lagerplatz",
-
-    group: "Gruppierung",
-    sort: "Sortierung",
-    groupLoc: "Nach Lagerplatz",
-    groupMaker: "Nach Hersteller",
-    groupNone: "Keine Gruppierung",
-
-    sortNew: "Neueste zuerst",
-    sortOld: "Älteste zuerst",
-    sortQty: "Menge ↓",
-    sortLoc: "Lagerplatz A→Z",
-    sortMaker: "Hersteller A→Z",
-    sortModel: "Modell A→Z",
-
-    total: "Einträge gesamt",
-    shown: "Angezeigt",
-    nothing: "Keine Treffer.",
-    promptSearch: "Bitte suchen oder Barcode scannen.",
-    all: "Alle",
-    noLoc: "Ohne Lagerplatz",
-    noMaker: "Ohne Hersteller",
-
-    hist: "Verlauf",
-    del: "Löschen",
-    open: "Öffnen",
-
-    delConfirm: "Eintrag löschen?",
-    noEan: "EAN fehlt.",
-    badQty: "Menge muss eine Zahl sein (0 oder mehr).",
-    needHttps: "HTTPS erforderlich (GitHub Pages). Öffne die Seite über https://…",
-    camFail: "Kamera konnte nicht gestartet werden. Prüfe: Einstellungen → Safari → Kamera.",
-    cantEdit: "Nicht erlaubt (nur Andrejs O).",
-
-    histTitleItem: "Eintragsverlauf",
-    histTitleGlobal: "Globaler Aktionsverlauf",
-    close: "Schließen",
-    created: "Erstellt",
-    updated: "Geändert",
-    deleted: "Gelöscht",
-    field: { maker:"Hersteller", tireModel:"Modell", size:"Größe", loc:"Lagerplatz", qty:"Menge" }
+    histTitleItem:"Eintragsverlauf",
+    histTitleGlobal:"Globaler Aktionsverlauf",
+    close:"Schließen",
+    created:"Erstellt", updated:"Geändert", deleted:"Gelöscht",
+    field:{ maker:"Hersteller", tireModel:"Modell", size:"Größe", loc:"Lagerplatz", qty:"Menge" }
   },
 
   lv: {
-    title: "Riepu uzskaite",
-    home: "Sākums",
-    scan: "Skenēšana",
+    title:"Riepu uzskaite", home:"Sākums", scan:"Skenēšana",
+    pageHome:"Sākumlapa", pageScan:"Skenēšana",
+    userPh:"Lietotājvārds", confirm:"Apstiprināt",
+    userNeed:"Vispirms ievadi lietotājvārdu.",
+    userLocked:"Vārds piesaistīts šai ierīcei.",
+    rightsAdmin:"Loma: Admin (pievienot/labot/dzēst).",
+    rightsUser:"Loma: Skatīšana (vēsture pieejama).",
 
-    pageHome: "Sākumlapa",
-    pageScan: "Skenēšana",
+    start:"Ieslēgt kameru", stop:"Izslēgt",
+    camOff:"Kamera izslēgta",
+    camOn:"Kamera ieslēgta. Tēmē uz svītrkodu…",
+    found:"Atrasts", autoOff:"(kamera izslēdzas)",
+    scanHint:"Skenējums vienmēr meklē pēc EAN. Admin papildus aizpilda formu.",
 
-    userPh: "Lietotājvārds",
-    confirm: "Apstiprināt",
-    userNeed: "Vispirms ievadi lietotājvārdu.",
-    userLocked: "Vārds piesaistīts šai ierīcei.",
-    rightsAdmin: "Loma: Admin (pievienot/labot/dzēst).",
-    rightsUser: "Loma: Skatīšana (vēsture pieejama).",
+    ean:"Svītrkods (EAN)", eanPh:"tiek noskenēts automātiski",
+    maker:"Ražotājs", makerPh:"piem. Nexen",
+    tireModel:"Modelis", tireModelPh:"piem. WinGuard WT1",
+    size:"Izmērs", sizePh:"piem. 195/65 R16 104/102T",
+    loc:"Vieta", locPh:"piem. 216",
+    qty:"Daudzums", qtyPh:"piem. 34",
 
-    start: "Ieslēgt kameru",
-    stop: "Izslēgt",
-    camOff: "Kamera izslēgta",
-    camOn: "Kamera ieslēgta. Tēmē uz svītrkodu…",
-    found: "Atrasts",
-    autoOff: "(kamera izslēdzas)",
-    scanHint: "Skenē: admins aizpilda formu, lietotājs meklē pēc EAN.",
+    save:"Saglabāt", clear:"Notīrīt",
+    listTitle:"Riepu saraksts",
+    openGlobalHistory:"Kopējā vēsture",
+    searchPh:"Meklēšana: EAN, ražotājs, modelis, izmērs, vieta",
 
-    startSearchScan: "Skenēt meklēšanai",
-    searchScanHint: "Noskenē svītrkodu – pozīcija tiks atrasta automātiski",
+    group:"Grupēšana", sort:"Kārtošana",
+    groupLoc:"Pēc vietas", groupMaker:"Pēc ražotāja", groupNone:"Bez grupēšanas",
+    sortNew:"Jaunākie vispirms", sortOld:"Vecākie vispirms", sortQty:"Daudzums ↓",
+    sortLoc:"Vieta A→Z", sortMaker:"Ražotājs A→Z", sortModel:"Modelis A→Z",
 
-    ean: "Svītrkods (EAN)",
-    eanPh: "tiek noskenēts automātiski",
-    maker: "Ražotājs",
-    makerPh: "piem. Nexen",
-    tireModel: "Modelis",
-    tireModelPh: "piem. WinGuard WT1",
-    size: "Izmērs",
-    sizePh: "piem. 195/65 R16 104/102T",
-    loc: "Vieta",
-    locPh: "piem. 216",
-    qty: "Daudzums",
-    qtyPh: "piem. 34",
+    shown:"Parādīts", nothing:"Nav rezultātu.",
+    promptSearch:"Lūdzu, meklē vai noskenē svītrkodu.",
+    all:"Visi", noLoc:"Bez vietas", noMaker:"Bez ražotāja",
 
-    save: "Saglabāt",
-    clear: "Notīrīt",
+    hist:"Vēsture", del:"Dzēst", open:"Atvērt",
+    delConfirm:"Dzēst ierakstu?",
+    noEan:"Trūkst EAN.",
+    badQty:"Daudzumam jābūt skaitlim (0 vai vairāk).",
+    needHttps:"Nepieciešams HTTPS (GitHub Pages). Atver lapu ar https://…",
+    camFail:"Neizdevās ieslēgt kameru. Pārbaudi: Iestatījumi → Safari → Kamera.",
+    cantEdit:"Nav atļauts (tikai Andrejs O).",
 
-    listTitle: "Riepu saraksts",
-    openGlobalHistory: "Kopējā vēsture",
-    searchPh: "Meklēšana: EAN, ražotājs, modelis, izmērs, vieta",
-
-    group: "Grupēšana",
-    sort: "Kārtošana",
-    groupLoc: "Pēc vietas",
-    groupMaker: "Pēc ražotāja",
-    groupNone: "Bez grupēšanas",
-
-    sortNew: "Jaunākie vispirms",
-    sortOld: "Vecākie vispirms",
-    sortQty: "Daudzums ↓",
-    sortLoc: "Vieta A→Z",
-    sortMaker: "Ražotājs A→Z",
-    sortModel: "Modelis A→Z",
-
-    total: "Kopā ieraksti",
-    shown: "Parādīts",
-    nothing: "Nav rezultātu.",
-    promptSearch: "Lūdzu, meklē vai noskenē svītrkodu.",
-    all: "Visi",
-    noLoc: "Bez vietas",
-    noMaker: "Bez ražotāja",
-
-    hist: "Vēsture",
-    del: "Dzēst",
-    open: "Atvērt",
-
-    delConfirm: "Dzēst ierakstu?",
-    noEan: "Trūkst EAN.",
-    badQty: "Daudzumam jābūt skaitlim (0 vai vairāk).",
-    needHttps: "Nepieciešams HTTPS (GitHub Pages). Atver lapu ar https://…",
-    camFail: "Neizdevās ieslēgt kameru. Pārbaudi: Iestatījumi → Safari → Kamera.",
-    cantEdit: "Nav atļauts (tikai Andrejs O).",
-
-    histTitleItem: "Ieraksta vēsture",
-    histTitleGlobal: "Kopējā darbību vēsture",
-    close: "Aizvērt",
-    created: "Izveidots",
-    updated: "Mainīts",
-    deleted: "Dzēsts",
-    field: { maker:"Ražotājs", tireModel:"Modelis", size:"Izmērs", loc:"Vieta", qty:"Daudzums" }
+    histTitleItem:"Ieraksta vēsture",
+    histTitleGlobal:"Kopējā darbību vēsture",
+    close:"Aizvērt",
+    created:"Izveidots", updated:"Mainīts", deleted:"Dzēsts",
+    field:{ maker:"Ražotājs", tireModel:"Modelis", size:"Izmērs", loc:"Vieta", qty:"Daudzums" }
   }
 };
 
@@ -516,7 +398,7 @@ let lang = loadJSON(STORAGE.lang, "ru");
 if (!I18N[lang]) lang = "ru";
 
 let user = loadJSON(STORAGE.user, "");
-let page = loadJSON(STORAGE.page, "home"); // "home" | "scan"
+let page = loadJSON(STORAGE.page, "home");
 let db = loadJSON(STORAGE.db, []);
 let globalHistory = loadJSON(STORAGE.gh, []);
 
@@ -541,19 +423,14 @@ const el = {
 
   pageHome: $("pageHome"),
   pageScan: $("pageScan"),
-  scannerCard: $("scannerCard"),
-  formCard: $("formCard"),
 
+  scannerCard: $("scannerCard"),
   start: $("start"),
   stop: $("stop"),
   status: $("status"),
   scanHint: $("scanHint"),
 
-  searchScanner: $("searchScanner"),
-  startSearchScan: $("startSearchScan"),
-  readerSearch: $("readerSearch"),
-  searchScanStatus: $("searchScanStatus"),
-
+  formCard: $("formCard"),
   lblEan: $("lblEan"),
   ean: $("ean"),
   lblMaker: $("lblMaker"),
@@ -601,13 +478,9 @@ function ensureUser(){
 /* Access visibility */
 function applyAccessVisibility(){
   const admin = isAdmin();
-
-  el.scannerCard.style.display = admin ? "" : "none";
-  el.formCard.style.display = admin ? "" : "none";
-
-  el.searchScanner.style.display = admin ? "none" : "";
-
-  el.openGlobalHistory.style.display = admin ? "" : "none";
+  el.scannerCard.style.display = "";              // камера всем
+  el.formCard.style.display = admin ? "" : "none";// форма только админу
+  el.openGlobalHistory.style.display = admin ? "" : "none"; // общая история только админу
 }
 
 /* Pages / menu */
@@ -652,9 +525,6 @@ function applyI18n(){
   el.stop.textContent = t.stop;
   el.status.textContent = scanning ? t.camOn : t.camOff;
   el.scanHint.textContent = t.scanHint;
-
-  el.startSearchScan.textContent = t.startSearchScan;
-  el.searchScanStatus.textContent = t.searchScanHint;
 
   el.lblEan.textContent = t.ean; el.ean.placeholder = t.eanPh;
   el.lblMaker.textContent = t.maker; el.maker.placeholder = t.makerPh;
@@ -775,7 +645,7 @@ async function startCamera(){
   if (!ensureUser()) return;
   if (!window.isSecureContext) { alert(T().needHttps); return; }
 
-  // админ: чистим форму; пользователь: не трогаем форму (её нет)
+  // админ — очищаем форму перед новым вводом
   if (isAdmin()) clearForm({ keepEAN:false });
 
   try {
@@ -789,31 +659,30 @@ async function startCamera(){
 
     await scanner.start(
       { facingMode:"environment" },
-      { fps:12, qrbox:{ width:260, height:160 }, experimentalFeatures:{ useBarCodeDetectorIfSupported:false } },
+      { fps: 12, qrbox: { width: 260, height: 160 } },
       async (text) => {
         const v = normEAN(text);
         if (!v || v === lastScan) return;
         lastScan = v;
 
+        // ВСЕМ: поиск по EAN
+        el.search.value = v;
+        renderList();
+
+        // АДМИНУ: заполнение формы для добавления
         if (isAdmin()) {
-          // Админ: заполняем форму
           el.ean.value = v;
           el.maker.value = "";
           el.tireModel.value = "";
           el.size.value = "";
           el.loc.value = "";
           el.qty.value = "";
-          el.status.textContent = `${T().found}: ${v} ${T().autoOff}`;
-          await stopCamera();
           el.maker.focus();
-        } else {
-          // Пользователь: поиск по EAN
-          el.search.value = v;
-          renderList();
-          el.status.textContent = `${T().found}: ${v} ${T().autoOff}`;
-          await stopCamera();
-          el.list.scrollIntoView({ behavior:"smooth", block:"start" });
         }
+
+        el.status.textContent = `${T().found}: ${v} ${T().autoOff}`;
+        await stopCamera();
+        el.list.scrollIntoView({ behavior:"smooth", block:"start" });
       },
       () => {}
     );
@@ -821,44 +690,6 @@ async function startCamera(){
     console.error(e);
     alert(T().camFail);
     await stopCamera();
-  }
-}
-
-let searchScannerInst = null;
-
-async function startSearchCamera(){
-  if (!ensureUser()) return;
-  if (isAdmin()) return; // админ не использует поиск-камеру
-  if (!window.isSecureContext) { alert(T().needHttps); return; }
-
-  try {
-    searchScannerInst = new Html5Qrcode("readerSearch");
-    el.startSearchScan.disabled = true;
-    el.searchScanStatus.textContent = T().camOn;
-
-    await searchScannerInst.start(
-      { facingMode:"environment" },
-      { fps:12, qrbox:{ width:260, height:160 } },
-      async (text) => {
-        const v = normEAN(text);
-        if (!v) return;
-
-        el.search.value = v;
-        renderList();
-
-        el.searchScanStatus.textContent = `${T().found}: ${v}`;
-        await searchScannerInst.stop();
-        await searchScannerInst.clear();
-        searchScannerInst = null;
-        el.startSearchScan.disabled = false;
-
-        el.list.scrollIntoView({ behavior:"smooth", block:"start" });
-      }
-    );
-  } catch (e) {
-    console.error(e);
-    alert(T().camFail);
-    el.startSearchScan.disabled = false;
   }
 }
 
@@ -892,7 +723,6 @@ function upsertItemFromForm(){
     next.createdAt = prev.createdAt || next.createdAt;
     next.history = Array.isArray(prev.history) ? prev.history : [];
     const changes = diffItem(prev, next);
-
     if (changes.length) {
       next.history.unshift({ type:"update", user, ts: now(), changes });
       pushGlobalHistory("update", ean, changes);
@@ -943,7 +773,7 @@ function compareItems(a,b,mode){
   return 0;
 }
 
-// ВАЖНО: пока нет поиска — список пустой
+// пока нет поиска — список пустой
 function filterItems(items){
   const q = normText(el.search.value).toLowerCase();
   if (!q) return [];
@@ -1085,7 +915,6 @@ function initUserUI(){
 function bindEvents(){
   el.menuBtn.addEventListener("click", openMenu);
   el.menuBack.addEventListener("click", closeMenu);
-  el.startSearchScan.addEventListener("click", startSearchCamera);
   el.menuHome.addEventListener("click", () => setPage("home"));
   el.menuScan.addEventListener("click", () => setPage("scan"));
 
