@@ -1,10 +1,41 @@
-const ADMIN_NAME = "Andrejs O";
+import { firebaseConfig, ADMIN_UI_PASSWORD } from "./firebase-config.js";
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {
+  getAuth,
+  signInAnonymously,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  collection,
+  onSnapshot,
+  query,
+  orderBy,
+  serverTimestamp,
+  addDoc
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+/* ==============================
+   Firebase init
+============================== */
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const fs = getFirestore(app);
+
+/* ==============================
+   Config / storage (local only for UI prefs)
+============================== */
 const STORAGE = {
-  lang: "tires_lang_v8",
-  user: "tires_user_fixed_v8",
-  page: "tires_page_v4",
-  db:   "tires_db_v11",
-  gh:   "tires_global_history_v7",
+  lang: "tires_lang_pub_v1",
+  user: "tires_user_fixed_pub_v1",
+  page: "tires_page_pub_v1",
+  adminUnlocked: "tires_admin_unlock_pub_v1"
 };
 
 function loadJSON(key, fallback) {
@@ -13,174 +44,333 @@ function loadJSON(key, fallback) {
 }
 function saveJSON(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
 
+/* ==============================
+   i18n
+============================== */
 const I18N = {
   ru: {
-    title:"Учёт шин", home:"Дом", scan:"Сканирование",
-    pageHome:"Главная", pageScan:"Сканирование",
-    menuLangTitle:"Язык", menuUserTitle:"Пользователь",
-    userPh:"Имя пользователя", confirm:"Подтвердить",
-    userNeed:"Сначала введи имя пользователя.",
-    userLocked:"Имя закреплено за этим устройством.",
-    rightsAdmin:"Права: админ (добавление/редактирование/удаление).",
-    rightsUser:"Права: просмотр (история доступна).",
-    start:"Включить камеру", stop:"Выключить",
-    camOff:"Камера выключена", camOn:"Камера включена. Наведи на штрих-код…",
-    found:"Найдено", autoOff:"(камера выключается)",
-    scanHint:"Скан всегда ищет по EAN. Админ дополнительно заполняет форму.",
-    ean:"Штрих-код (EAN)", eanPh:"сканируется автоматически",
-    maker:"Марка", makerPh:"например Nexen",
-    tireModel:"Модель", tireModelPh:"например WinGuard WT1",
-    size:"Размер", sizePh:"например 195/65 R16 104/102T",
-    loc:"Локация", locPh:"например 216",
-    qty:"Кол-во", qtyPh:"например 34",
-    save:"Сохранить", clear:"Очистить",
-    listTitle:"Список шин", openGlobalHistory:"Общая история",
-    searchPh:"Поиск: EAN, марка, модель, размер, локация",
-    group:"Группировка", sort:"Сортировка",
-    groupLoc:"По локации", groupMaker:"По марке", groupNone:"Без группировки",
-    sortNew:"Сначала новые", sortOld:"Сначала старые", sortQty:"Кол-во ↓",
-    sortLoc:"Локация A→Z", sortMaker:"Марка A→Z", sortModel:"Модель A→Z",
-    shown:"Показано", nothing:"Ничего не найдено.",
-    promptSearch:"Введите поиск или отсканируйте штрих-код.",
-    all:"Все", noLoc:"Без локации", noMaker:"Без марки",
-    hist:"История", del:"Удалить", open:"Открыть",
-    delConfirm:"Удалить запись?",
-    noEan:"Нет EAN (штрих-кода).",
-    badQty:"Кол-во должно быть числом (0 или больше).",
-    needHttps:"Нужно HTTPS (GitHub Pages). Открой страницу по ссылке https://...",
-    camFail:"Не удалось включить камеру. Проверь разрешение: Настройки → Safari → Камера.",
-    cantEdit:"Доступ запрещён (только Andrejs O).",
-    histTitleItem:"История позиции",
-    histTitleGlobal:"Общая история действий",
-    close:"Закрыть",
-    created:"Создано", updated:"Изменено", deleted:"Удалено",
-    field:{ maker:"Марка", tireModel:"Модель", size:"Размер", loc:"Локация", qty:"Кол-во" }
+    title: "Учёт шин",
+    home: "Дом",
+    scan: "Сканирование",
+    pageHome: "Главная",
+    pageScan: "Сканирование",
+
+    lblLang: "Язык",
+    lblUser: "Имя пользователя",
+    confirm: "Подтвердить",
+    userNeed: "Сначала введи имя пользователя.",
+    userLocked: "Имя закреплено за этим устройством.",
+
+    lblAdminPass: "Пароль администратора",
+    adminUnlock: "Включить админ-режим",
+    adminUnlocked: "Админ-режим включён на этом устройстве.",
+    adminWrong: "Неверный пароль.",
+    adminUidNeed: "UID не добавлен в список админов (Firestore /admins).",
+
+    start: "Сканировать",
+    stop: "Остановить",
+    camOff: "Камера выключена",
+    camOn: "Камера включена. Наведи на штрих-код…",
+    found: "Найдено",
+    autoOff: "(камера выключается)",
+    scanHint: "Скан ищет позицию по EAN. Админу дополнительно заполняет форму.",
+
+    ean: "Штрих-код (EAN)",
+    eanPh: "сканируется автоматически",
+    maker: "Марка",
+    makerPh: "например Nexen",
+    tireModel: "Модель",
+    tireModelPh: "например WinGuard WT1",
+    size: "Размер",
+    sizePh: "например 195/65 R16 104/102T",
+    loc: "Локация",
+    locPh: "например 216",
+    qty: "Кол-во",
+    qtyPh: "например 34",
+
+    save: "Сохранить",
+    clear: "Очистить",
+
+    listTitle: "Список шин",
+    openGlobalHistory: "Общая история (админ)",
+    searchPh: "Поиск или EAN после скана",
+
+    group: "Группировка",
+    sort: "Сортировка",
+    groupLoc: "По локации",
+    groupMaker: "По марке",
+    groupNone: "Без группировки",
+
+    sortNew: "Сначала новые",
+    sortOld: "Сначала старые",
+    sortQty: "Кол-во ↓",
+    sortLoc: "Локация A→Z",
+    sortMaker: "Марка A→Z",
+    sortModel: "Модель A→Z",
+
+    shown: "Показано",
+    nothing: "Ничего не найдено.",
+    promptSearch: "Введите поиск или отсканируйте штрих-код.",
+    all: "Все",
+    noLoc: "Без локации",
+    noMaker: "Без марки",
+
+    hist: "История",
+    del: "Удалить",
+    open: "Открыть",
+
+    delConfirm: "Удалить запись?",
+    noEan: "Нет EAN (штрих-кода).",
+    badQty: "Кол-во должно быть числом (0 или больше).",
+    needHttps: "Нужно HTTPS (GitHub Pages). Открой https://…",
+    camFail: "Не удалось включить камеру. Проверь разрешение: Настройки → Safari → Камера.",
+
+    histTitleItem: "История позиции",
+    histTitleGlobal: "Общая история действий",
+    close: "Закрыть",
+    created: "Создано",
+    updated: "Изменено",
+    deleted: "Удалено",
+    field: { maker:"Марка", tireModel:"Модель", size:"Размер", loc:"Локация", qty:"Кол-во" }
   },
+
   de: {
-    title:"Reifenverwaltung", home:"Start", scan:"Scannen",
-    pageHome:"Startseite", pageScan:"Scannen",
-    menuLangTitle:"Sprache", menuUserTitle:"Benutzer",
-    userPh:"Benutzername", confirm:"Bestätigen",
-    userNeed:"Bitte zuerst einen Benutzernamen eingeben.",
-    userLocked:"Name ist an dieses Gerät gebunden.",
-    rightsAdmin:"Rolle: Admin (Anlegen/Bearbeiten/Löschen).",
-    rightsUser:"Rolle: Ansicht (Verlauf verfügbar).",
-    start:"Kamera starten", stop:"Stop",
-    camOff:"Kamera aus", camOn:"Kamera an. Auf den Barcode richten…",
-    found:"Gefunden", autoOff:"(Kamera wird beendet)",
-    scanHint:"Scan sucht immer per EAN. Admin füllt zusätzlich das Formular.",
-    ean:"Barcode (EAN)", eanPh:"wird automatisch gescannt",
-    maker:"Hersteller", makerPh:"z. B. Nexen",
-    tireModel:"Modell", tireModelPh:"z. B. WinGuard WT1",
-    size:"Größe", sizePh:"z. B. 195/65 R16 104/102T",
-    loc:"Lagerplatz", locPh:"z. B. 216",
-    qty:"Menge", qtyPh:"z. B. 34",
-    save:"Speichern", clear:"Leeren",
-    listTitle:"Reifenliste", openGlobalHistory:"Globaler Verlauf",
-    searchPh:"Suche: EAN, Hersteller, Modell, Größe, Lagerplatz",
-    group:"Gruppierung", sort:"Sortierung",
-    groupLoc:"Nach Lagerplatz", groupMaker:"Nach Hersteller", groupNone:"Keine Gruppierung",
-    sortNew:"Neueste zuerst", sortOld:"Älteste zuerst", sortQty:"Menge ↓",
-    sortLoc:"Lagerplatz A→Z", sortMaker:"Hersteller A→Z", sortModel:"Modell A→Z",
-    shown:"Angezeigt", nothing:"Keine Treffer.",
-    promptSearch:"Bitte suchen oder Barcode scannen.",
-    all:"Alle", noLoc:"Ohne Lagerplatz", noMaker:"Ohne Hersteller",
-    hist:"Verlauf", del:"Löschen", open:"Öffnen",
-    delConfirm:"Eintrag löschen?",
-    noEan:"EAN fehlt.",
-    badQty:"Menge muss eine Zahl sein (0 oder mehr).",
-    needHttps:"HTTPS erforderlich (GitHub Pages). Öffne die Seite über https://…",
-    camFail:"Kamera konnte nicht gestartet werden. Prüfe: Einstellungen → Safari → Kamera.",
-    cantEdit:"Nicht erlaubt (nur Andrejs O).",
-    histTitleItem:"Eintragsverlauf",
-    histTitleGlobal:"Globaler Aktionsverlauf",
-    close:"Schließen",
-    created:"Erstellt", updated:"Geändert", deleted:"Gelöscht",
-    field:{ maker:"Hersteller", tireModel:"Modell", size:"Größe", loc:"Lagerplatz", qty:"Menge" }
+    title: "Reifenverwaltung",
+    home: "Start",
+    scan: "Scannen",
+    pageHome: "Startseite",
+    pageScan: "Scannen",
+
+    lblLang: "Sprache",
+    lblUser: "Benutzername",
+    confirm: "Bestätigen",
+    userNeed: "Bitte zuerst einen Benutzernamen eingeben.",
+    userLocked: "Name ist an dieses Gerät gebunden.",
+
+    lblAdminPass: "Admin-Passwort",
+    adminUnlock: "Admin-Modus aktivieren",
+    adminUnlocked: "Admin-Modus ist auf diesem Gerät aktiv.",
+    adminWrong: "Falsches Passwort.",
+    adminUidNeed: "UID ist nicht in /admins freigeschaltet (Firestore).",
+
+    start: "Scannen",
+    stop: "Stop",
+    camOff: "Kamera aus",
+    camOn: "Kamera an. Auf Barcode richten…",
+    found: "Gefunden",
+    autoOff: "(Kamera wird beendet)",
+    scanHint: "Scan sucht per EAN. Admin füllt zusätzlich das Formular.",
+
+    ean: "Barcode (EAN)",
+    eanPh: "wird automatisch gescannt",
+    maker: "Hersteller",
+    makerPh: "z. B. Nexen",
+    tireModel: "Modell",
+    tireModelPh: "z. B. WinGuard WT1",
+    size: "Größe",
+    sizePh: "z. B. 195/65 R16 104/102T",
+    loc: "Lagerplatz",
+    locPh: "z. B. 216",
+    qty: "Menge",
+    qtyPh: "z. B. 34",
+
+    save: "Speichern",
+    clear: "Leeren",
+
+    listTitle: "Reifenliste",
+    openGlobalHistory: "Globaler Verlauf (Admin)",
+    searchPh: "Suche oder EAN nach Scan",
+
+    group: "Gruppierung",
+    sort: "Sortierung",
+    groupLoc: "Nach Lagerplatz",
+    groupMaker: "Nach Hersteller",
+    groupNone: "Keine Gruppierung",
+
+    sortNew: "Neueste zuerst",
+    sortOld: "Älteste zuerst",
+    sortQty: "Menge ↓",
+    sortLoc: "Lagerplatz A→Z",
+    sortMaker: "Hersteller A→Z",
+    sortModel: "Modell A→Z",
+
+    shown: "Angezeigt",
+    nothing: "Keine Treffer.",
+    promptSearch: "Bitte suchen oder Barcode scannen.",
+    all: "Alle",
+    noLoc: "Ohne Lagerplatz",
+    noMaker: "Ohne Hersteller",
+
+    hist: "Verlauf",
+    del: "Löschen",
+    open: "Öffnen",
+
+    delConfirm: "Eintrag löschen?",
+    noEan: "EAN fehlt.",
+    badQty: "Menge muss eine Zahl sein (0 oder mehr).",
+    needHttps: "HTTPS erforderlich (GitHub Pages). Öffne https://…",
+    camFail: "Kamera konnte nicht gestartet werden. Prüfe: Einstellungen → Safari → Kamera.",
+
+    histTitleItem: "Eintragsverlauf",
+    histTitleGlobal: "Globaler Aktionsverlauf",
+    close: "Schließen",
+    created: "Erstellt",
+    updated: "Geändert",
+    deleted: "Gelöscht",
+    field: { maker:"Hersteller", tireModel:"Modell", size:"Größe", loc:"Lagerplatz", qty:"Menge" }
   },
+
   lv: {
-    title:"Riepu uzskaite", home:"Sākums", scan:"Skenēšana",
-    pageHome:"Sākumlapa", pageScan:"Skenēšana",
-    menuLangTitle:"Valoda", menuUserTitle:"Lietotājs",
-    userPh:"Lietotājvārds", confirm:"Apstiprināt",
-    userNeed:"Vispirms ievadi lietotājvārdu.",
-    userLocked:"Vārds piesaistīts šai ierīcei.",
-    rightsAdmin:"Loma: Admin (pievienot/labot/dzēst).",
-    rightsUser:"Loma: Skatīšana (vēsture pieejama).",
-    start:"Ieslēgt kameru", stop:"Izslēgt",
-    camOff:"Kamera izslēgta", camOn:"Kamera ieslēgta. Tēmē uz svītrkodu…",
-    found:"Atrasts", autoOff:"(kamera izslēdzas)",
-    scanHint:"Skenējums vienmēr meklē pēc EAN. Admin papildus aizpilda formu.",
-    ean:"Svītrkods (EAN)", eanPh:"tiek noskenēts automātiski",
-    maker:"Ražotājs", makerPh:"piem. Nexen",
-    tireModel:"Modelis", tireModelPh:"piem. WinGuard WT1",
-    size:"Izmērs", sizePh:"piem. 195/65 R16 104/102T",
-    loc:"Vieta", locPh:"piem. 216",
-    qty:"Daudzums", qtyPh:"piem. 34",
-    save:"Saglabāt", clear:"Notīrīt",
-    listTitle:"Riepu saraksts", openGlobalHistory:"Kopējā vēsture",
-    searchPh:"Meklēšana: EAN, ražotājs, modelis, izmērs, vieta",
-    group:"Grupēšana", sort:"Kārtošana",
-    groupLoc:"Pēc vietas", groupMaker:"Pēc ražotāja", groupNone:"Bez grupēšanas",
-    sortNew:"Jaunākie vispirms", sortOld:"Vecākie vispirms", sortQty:"Daudzums ↓",
-    sortLoc:"Vieta A→Z", sortMaker:"Ražotājs A→Z", sortModel:"Modelis A→Z",
-    shown:"Parādīts", nothing:"Nav rezultātu.",
-    promptSearch:"Lūdzu, meklē vai noskenē svītrkodu.",
-    all:"Visi", noLoc:"Bez vietas", noMaker:"Bez ražotāja",
-    hist:"Vēsture", del:"Dzēst", open:"Atvērt",
-    delConfirm:"Dzēst ierakstu?",
-    noEan:"Trūkst EAN.",
-    badQty:"Daudzumam jābūt skaitlim (0 vai vairāk).",
-    needHttps:"Nepieciešams HTTPS (GitHub Pages). Atver lapu ar https://…",
-    camFail:"Neizdevās ieslēgt kameru. Pārbaudi: Iestatījumi → Safari → Kamera.",
-    cantEdit:"Nav atļauts (tikai Andrejs O).",
-    histTitleItem:"Ieraksta vēsture",
-    histTitleGlobal:"Kopējā darbību vēsture",
-    close:"Aizvērt",
-    created:"Izveidots", updated:"Mainīts", deleted:"Dzēsts",
-    field:{ maker:"Ražotājs", tireModel:"Modelis", size:"Izmērs", loc:"Vieta", qty:"Daudzums" }
+    title: "Riepu uzskaite",
+    home: "Sākums",
+    scan: "Skenēšana",
+    pageHome: "Sākumlapa",
+    pageScan: "Skenēšana",
+
+    lblLang: "Valoda",
+    lblUser: "Lietotājvārds",
+    confirm: "Apstiprināt",
+    userNeed: "Vispirms ievadi lietotājvārdu.",
+    userLocked: "Vārds piesaistīts šai ierīcei.",
+
+    lblAdminPass: "Admin parole",
+    adminUnlock: "Ieslēgt admin režīmu",
+    adminUnlocked: "Admin režīms ieslēgts šajā ierīcē.",
+    adminWrong: "Nepareiza parole.",
+    adminUidNeed: "UID nav atļauts /admins (Firestore).",
+
+    start: "Skenēt",
+    stop: "Stop",
+    camOff: "Kamera izslēgta",
+    camOn: "Kamera ieslēgta. Tēmē uz svītrkodu…",
+    found: "Atrasts",
+    autoOff: "(kamera izslēdzas)",
+    scanHint: "Skenēšana meklē pēc EAN. Adminam papildus aizpilda formu.",
+
+    ean: "Svītrkods (EAN)",
+    eanPh: "tiek noskenēts automātiski",
+    maker: "Ražotājs",
+    makerPh: "piem. Nexen",
+    tireModel: "Modelis",
+    tireModelPh: "piem. WinGuard WT1",
+    size: "Izmērs",
+    sizePh: "piem. 195/65 R16 104/102T",
+    loc: "Vieta",
+    locPh: "piem. 216",
+    qty: "Daudzums",
+    qtyPh: "piem. 34",
+
+    save: "Saglabāt",
+    clear: "Notīrīt",
+
+    listTitle: "Riepu saraksts",
+    openGlobalHistory: "Kopējā vēsture (Admin)",
+    searchPh: "Meklēšana vai EAN pēc skenējuma",
+
+    group: "Grupēšana",
+    sort: "Kārtošana",
+    groupLoc: "Pēc vietas",
+    groupMaker: "Pēc ražotāja",
+    groupNone: "Bez grupēšanas",
+
+    sortNew: "Jaunākie vispirms",
+    sortOld: "Vecākie vispirms",
+    sortQty: "Daudzums ↓",
+    sortLoc: "Vieta A→Z",
+    sortMaker: "Ražotājs A→Z",
+    sortModel: "Modelis A→Z",
+
+    shown: "Parādīts",
+    nothing: "Nav rezultātu.",
+    promptSearch: "Lūdzu, meklē vai noskenē svītrkodu.",
+    all: "Visi",
+    noLoc: "Bez vietas",
+    noMaker: "Bez ražotāja",
+
+    hist: "Vēsture",
+    del: "Dzēst",
+    open: "Atvērt",
+
+    delConfirm: "Dzēst ierakstu?",
+    noEan: "Trūkst EAN.",
+    badQty: "Daudzumam jābūt skaitlim (0 vai vairāk).",
+    needHttps: "Nepieciešams HTTPS (GitHub Pages). Atver https://…",
+    camFail: "Neizdevās ieslēgt kameru. Pārbaudi: Iestatījumi → Safari → Kamera.",
+
+    histTitleItem: "Ieraksta vēsture",
+    histTitleGlobal: "Kopējā darbību vēsture",
+    close: "Aizvērt",
+    created: "Izveidots",
+    updated: "Mainīts",
+    deleted: "Dzēsts",
+    field: { maker:"Ražotājs", tireModel:"Modelis", size:"Izmērs", loc:"Vieta", qty:"Daudzums" }
   }
 };
 
+/* ==============================
+   State
+============================== */
 let lang = loadJSON(STORAGE.lang, "ru");
 if (!I18N[lang]) lang = "ru";
 
-let user = loadJSON(STORAGE.user, "");
-let page = loadJSON(STORAGE.page, "home");
-let db = loadJSON(STORAGE.db, []);
-let globalHistory = loadJSON(STORAGE.gh, []);
+let userName = loadJSON(STORAGE.user, "");
+let page = loadJSON(STORAGE.page, "home"); // home|scan
+
+let adminUnlocked = loadJSON(STORAGE.adminUnlocked, false);
+
+let uid = "";
+let isAdminUid = false;
+
+let db = [];              // items from Firestore
+let globalHistory = [];   // history from Firestore (admin only)
 
 let scanner = null;
 let scanning = false;
 let lastScan = "";
 
+/* ==============================
+   DOM
+============================== */
 const $ = (id) => document.getElementById(id);
 const el = {
   uiTitle: $("uiTitle"),
   pageSubtitle: $("pageSubtitle"),
+  topStatus: $("topStatus"),
 
+  // menu
   menuBtn: $("menuBtn"),
   menuBack: $("menuBack"),
   menuPanel: $("menuPanel"),
   menuHome: $("menuHome"),
   menuScan: $("menuScan"),
 
-  menuLangTitle: $("menuLangTitle"),
-  menuUserTitle: $("menuUserTitle"),
+  lblLang: $("lblLang"),
   lang: $("lang"),
+
+  lblUser: $("lblUser"),
   username: $("username"),
   confirmUser: $("confirmUser"),
   userHint: $("userHint"),
 
+  adminBox: $("adminBox"),
+  lblAdminPass: $("lblAdminPass"),
+  adminPass: $("adminPass"),
+  adminUnlock: $("adminUnlock"),
+  adminHint: $("adminHint"),
+
+  uidLine: $("uidLine"),
+
+  // pages
   pageHome: $("pageHome"),
   pageScan: $("pageScan"),
 
-  scannerCard: $("scannerCard"),
+  // scanner
   start: $("start"),
   stop: $("stop"),
   status: $("status"),
   scanHint: $("scanHint"),
 
+  // form
   formCard: $("formCard"),
   lblEan: $("lblEan"),
   ean: $("ean"),
@@ -198,6 +388,7 @@ const el = {
   clear: $("clear"),
   rightsHint: $("rightsHint"),
 
+  // list
   listTitle: $("listTitle"),
   openGlobalHistory: $("openGlobalHistory"),
   search: $("search"),
@@ -208,58 +399,54 @@ const el = {
   stats: $("stats"),
   list: $("list"),
 
+  // modal
   modalBack: $("modalBack"),
   modalTitle: $("modalTitle"),
   modalBody: $("modalBody"),
-  modalClose: $("modalClose"),
+  modalClose: $("modalClose")
 };
 
 function T(){ return I18N[lang]; }
-function isAdmin(){ return user === ADMIN_NAME; }
-function now(){ return Date.now(); }
 function normEAN(x){ return String(x||"").replace(/\s+/g,"").trim(); }
 function normText(x){ return String(x||"").trim(); }
+function nowMs(){ return Date.now(); }
 
 function ensureUser(){
-  if (user) return true;
+  if (userName) return true;
   alert(T().userNeed);
   return false;
 }
 
-function buildLangOptions(){
-  el.lang.innerHTML = `
-    <option value="ru">RU</option>
-    <option value="de">DE</option>
-    <option value="lv">LV</option>
-  `;
-  el.lang.value = lang;
+function effectiveAdmin(){
+  // реальные права = UID в /admins
+  // интерфейс админа включается только если пароль введён
+  return isAdminUid && adminUnlocked;
 }
 
-function applyAccessVisibility(){
-  el.scannerCard.style.display = "";
-  el.formCard.style.display = isAdmin() ? "" : "none";
-  el.openGlobalHistory.style.display = isAdmin() ? "" : "none";
-}
+/* ==============================
+   Menu / Pages
+============================== */
+function openMenu(){ el.menuBack.style.display="block"; el.menuPanel.style.display="block"; }
+function closeMenu(){ el.menuBack.style.display="none"; el.menuPanel.style.display="none"; }
 
 function setPage(next){
   page = next;
   saveJSON(STORAGE.page, page);
 
-  const t = T();
-  el.pageHome.style.display = (page === "home") ? "" : "none";
-  el.pageScan.style.display = (page === "scan") ? "block" : "none";
-  el.pageSubtitle.textContent = (page === "home") ? t.pageHome : t.pageScan;
+  el.pageHome.style.display = (page==="home") ? "" : "none";
+  el.pageScan.style.display = (page==="scan") ? "block" : "none";
+  el.pageSubtitle.textContent = (page==="home") ? T().pageHome : T().pageScan;
 
-  el.menuHome.classList.toggle("active", page === "home");
-  el.menuScan.classList.toggle("active", page === "scan");
+  el.menuHome.classList.toggle("active", page==="home");
+  el.menuScan.classList.toggle("active", page==="scan");
 
   closeMenu();
-  if (page !== "scan") stopCamera().catch(()=>{});
+  if (page!=="scan") stopCamera().catch(()=>{});
 }
 
-function openMenu(){ el.menuBack.style.display="block"; el.menuPanel.style.display="block"; }
-function closeMenu(){ el.menuBack.style.display="none"; el.menuPanel.style.display="none"; }
-
+/* ==============================
+   i18n apply
+============================== */
 function applyI18n(){
   const t = T();
   el.uiTitle.textContent = t.title;
@@ -267,12 +454,15 @@ function applyI18n(){
   el.menuHome.textContent = t.home;
   el.menuScan.textContent = t.scan;
 
-  el.menuLangTitle.textContent = t.menuLangTitle;
-  el.menuUserTitle.textContent = t.menuUserTitle;
+  el.lblLang.textContent = t.lblLang;
+  el.lang.value = lang;
 
+  el.lblUser.textContent = t.lblUser;
   el.username.placeholder = t.userPh;
   el.confirmUser.textContent = t.confirm;
-  el.userHint.textContent = user ? t.userLocked : t.userNeed;
+
+  el.lblAdminPass.textContent = t.lblAdminPass;
+  el.adminUnlock.textContent = t.adminUnlock;
 
   el.start.textContent = t.start;
   el.stop.textContent = t.stop;
@@ -288,8 +478,6 @@ function applyI18n(){
 
   el.save.textContent = t.save;
   el.clear.textContent = t.clear;
-
-  el.rightsHint.textContent = user ? (isAdmin() ? t.rightsAdmin : t.rightsUser) : "";
 
   el.listTitle.textContent = t.listTitle;
   el.openGlobalHistory.textContent = t.openGlobalHistory;
@@ -310,7 +498,94 @@ function applyI18n(){
   el.sortBy.options[5].text = t.sortModel;
 
   el.modalClose.textContent = t.close;
-  el.pageSubtitle.textContent = (page === "home") ? t.pageHome : t.pageScan;
+  el.pageSubtitle.textContent = (page==="home") ? t.pageHome : t.pageScan;
+}
+
+/* ==============================
+   Visibility
+============================== */
+function applyAccessVisibility(){
+  // форма только если effectiveAdmin()
+  el.formCard.style.display = effectiveAdmin() ? "" : "none";
+  // общая история только админ
+  el.openGlobalHistory.style.display = effectiveAdmin() ? "" : "none";
+
+  // блок ввода пароля показываем всем, но подсказка разная
+  el.adminBox.style.display = isAdminUid ? "" : "none";
+
+  // статус сверху
+  const parts = [];
+  if (!userName) parts.push("—");
+  else parts.push(userName);
+  if (effectiveAdmin()) parts.push("ADMIN");
+  el.topStatus.textContent = parts.join(" • ");
+
+  // подсказки
+  if (!userName) el.userHint.textContent = T().userNeed;
+  else el.userHint.textContent = T().userLocked;
+
+  el.uidLine.textContent = uid ? `UID: ${uid}` : "";
+}
+
+/* ==============================
+   Firestore realtime
+============================== */
+function subscribeItems(){
+  const qy = query(collection(fs, "items"), orderBy("updatedAt", "desc"));
+  onSnapshot(qy, (snap) => {
+    db = snap.docs.map(d => ({ ean: d.id, ...d.data() }));
+    renderList();
+  });
+}
+
+function subscribeGlobalHistory(){
+  if (!effectiveAdmin()) return;
+  const qy = query(collection(fs, "history"), orderBy("ts", "desc"));
+  onSnapshot(qy, (snap) => {
+    globalHistory = snap.docs.map(d => d.data());
+  });
+}
+
+/* ==============================
+   History helpers (UI)
+============================== */
+function openModal(title, html){
+  el.modalTitle.textContent = title;
+  el.modalBody.innerHTML = html;
+  el.modalBack.style.display = "flex";
+}
+function closeModal(){
+  el.modalBack.style.display = "none";
+  el.modalBody.innerHTML = "";
+}
+
+function renderHistoryEntries(entries, labelFn){
+  if (!entries.length) return `<div class="muted">${T().nothing}</div>`;
+  return entries.map(h => {
+    const ts = new Date(h.tsMs || nowMs()).toLocaleString();
+    const label = labelFn(h);
+    const lines = (h.changes && h.changes.length)
+      ? h.changes.map(c => {
+          const name = (T().field && T().field[c.field]) ? T().field[c.field] : c.field;
+          return `<div class="histLine">${name}: ${c.from} → ${c.to}</div>`;
+        }).join("")
+      : `<div class="histLine">—</div>`;
+    return `<div class="histItem"><div class="histMeta">${ts} • ${h.user || "—"} • ${label}</div>${lines}</div>`;
+  }).join("");
+}
+
+async function showItemHistory(ean){
+  // читаем историю по позиции из коллекции history (фильтром на клиенте — для простоты)
+  const entries = globalHistory.filter(h => h.ean === ean && h.scope === "item");
+  const html = renderHistoryEntries(entries, (h) => h.action === "create" ? T().created : (h.action === "delete" ? T().deleted : T().updated));
+  openModal(`${T().histTitleItem}: ${ean}`, html);
+}
+
+function showGlobalHistory(){
+  if (!effectiveAdmin()) return;
+  const entries = globalHistory.filter(h => h.scope === "global");
+  const html = renderHistoryEntries(entries, (h) => h.action === "create" ? T().created : (h.action === "delete" ? T().deleted : T().updated));
+  openModal(T().histTitleGlobal, html);
 }
 
 function diffItem(prev, next){
@@ -323,52 +598,22 @@ function diffItem(prev, next){
   }
   return changes;
 }
-function pushGlobalHistory(action, ean, changes){
-  globalHistory.unshift({ ts: now(), user, action, ean, changes: changes || [] });
-  if (globalHistory.length > 500) globalHistory.length = 500;
-  saveJSON(STORAGE.gh, globalHistory);
+
+async function pushHistory({ scope, action, ean, changes }){
+  // history: одна общая коллекция, чтобы всем было видно
+  await addDoc(collection(fs, "history"), {
+    scope, action, ean,
+    changes: changes || [],
+    user: userName || "",
+    uid: uid || "",
+    ts: serverTimestamp(),
+    tsMs: nowMs()
+  });
 }
 
-function openModal(title, html){
-  el.modalTitle.textContent = title;
-  el.modalBody.innerHTML = html;
-  el.modalBack.style.display = "flex";
-}
-function closeModal(){
-  el.modalBack.style.display = "none";
-  el.modalBody.innerHTML = "";
-}
-function renderHistoryEntries(entries, labelFn){
-  if (!entries.length) return `<div class="muted">${T().nothing}</div>`;
-  return entries.map(h => {
-    const ts = new Date(h.ts || now()).toLocaleString();
-    const label = labelFn(h);
-    const lines = (h.changes && h.changes.length)
-      ? h.changes.map(c => {
-          const name = (T().field && T().field[c.field]) ? T().field[c.field] : c.field;
-          return `<div class="histLine">${name}: ${c.from} → ${c.to}</div>`;
-        }).join("")
-      : `<div class="histLine">—</div>`;
-    return `<div class="histItem"><div class="histMeta">${ts} • ${h.user || "—"} • ${label}</div>${lines}</div>`;
-  }).join("");
-}
-function showItemHistory(ean){
-  const it = db.find(x => x.ean === ean);
-  const entries = (it && Array.isArray(it.history)) ? it.history : [];
-  const html = renderHistoryEntries(entries, (h) => (h.type === "create") ? T().created : T().updated);
-  openModal(`${T().histTitleItem}: ${ean}`, html);
-}
-function showGlobalHistory(){
-  if (!isAdmin()) return;
-  const entries = Array.isArray(globalHistory) ? globalHistory : [];
-  const html = renderHistoryEntries(entries, (h) => {
-    if (h.action === "create") return T().created;
-    if (h.action === "delete") return T().deleted;
-    return T().updated;
-  }).replaceAll(`<div class="histLine">—</div>`, "");
-  openModal(T().histTitleGlobal, html || `<div class="muted">${T().nothing}</div>`);
-}
-
+/* ==============================
+   Camera
+============================== */
 function clearForm({ keepEAN=false } = {}){
   const keep = el.ean.value;
   el.ean.value = keepEAN ? keep : "";
@@ -395,7 +640,11 @@ async function startCamera(){
   if (!ensureUser()) return;
   if (!window.isSecureContext) { alert(T().needHttps); return; }
 
-  if (isAdmin()) clearForm({ keepEAN:false });
+  // если камера уже запущена — перезапуск
+  await stopCamera();
+
+  // для админа: очистить форму перед новым сканом
+  if (effectiveAdmin()) clearForm({ keepEAN:false });
 
   try {
     scanner = new Html5Qrcode("reader");
@@ -407,30 +656,32 @@ async function startCamera(){
     el.status.textContent = T().camOn;
 
     await scanner.start(
-      { facingMode:"environment" },
-      { fps: 12, qrbox: { width: 260, height: 160 } },
+      { facingMode: "environment" },
+      { fps: 12, qrbox: { width: 260, height: 160 }, experimentalFeatures:{ useBarCodeDetectorIfSupported:false } },
       async (text) => {
         const v = normEAN(text);
         if (!v || v === lastScan) return;
         lastScan = v;
 
+        // ВСЕМ: поиск по EAN
         el.search.value = v;
         renderList();
 
-        if (isAdmin()) {
+        // АДМИНУ: заполняем поле EAN в форме (дальше вводит руками)
+        if (effectiveAdmin()) {
           el.ean.value = v;
-          el.maker.value = "";
-          el.tireModel.value = "";
-          el.size.value = "";
-          el.loc.value = "";
-          el.qty.value = "";
           el.maker.focus();
         }
 
         el.status.textContent = `${T().found}: ${v} ${T().autoOff}`;
+
+        // автозакрытие
         await stopCamera();
+
+        // прокрутка к списку
         el.list.scrollIntoView({ behavior:"smooth", block:"start" });
-      }
+      },
+      () => {}
     );
   } catch (e) {
     console.error(e);
@@ -439,9 +690,12 @@ async function startCamera(){
   }
 }
 
-function upsertItemFromForm(){
+/* ==============================
+   Admin actions (Firestore)
+============================== */
+async function upsertItemFromForm(){
   if (!ensureUser()) return;
-  if (!isAdmin()) { alert(T().cantEdit); return; }
+  if (!effectiveAdmin()) { alert(T().adminUidNeed); return; }
 
   const ean = normEAN(el.ean.value);
   if (!ean) { alert(T().noEan); return; }
@@ -449,51 +703,41 @@ function upsertItemFromForm(){
   const qty = Number(el.qty.value || 0);
   if (!Number.isFinite(qty) || qty < 0) { alert(T().badQty); return; }
 
+  const ref = doc(fs, "items", ean);
+  const snap = await getDoc(ref);
+  const prev = snap.exists() ? snap.data() : null;
+
   const next = {
-    ean,
     maker: normText(el.maker.value),
     tireModel: normText(el.tireModel.value),
     size: normText(el.size.value),
     loc: normText(el.loc.value),
     qty,
-    createdAt: now(),
-    updatedAt: now(),
-    history: []
+    updatedAt: serverTimestamp(),
+    updatedAtMs: nowMs(),
+    createdAt: prev?.createdAt ?? serverTimestamp(),
+    createdAtMs: prev?.createdAtMs ?? nowMs()
   };
 
-  const idx = db.findIndex(x => x.ean === ean);
+  await setDoc(ref, next, { merge: true });
 
-  if (idx >= 0) {
-    const prev = db[idx];
-    next.createdAt = prev.createdAt || next.createdAt;
-    next.history = Array.isArray(prev.history) ? prev.history : [];
-    const changes = diffItem(prev, next);
-    if (changes.length) {
-      next.history.unshift({ type:"update", user, ts: now(), changes });
-      pushGlobalHistory("update", ean, changes);
-    }
-    db[idx] = next;
-  } else {
-    next.history = [{ type:"create", user, ts: now(), changes: [] }];
-    pushGlobalHistory("create", ean, []);
-    db.push(next);
-  }
+  const changes = prev ? diffItem(prev, next) : [];
+  await pushHistory({ scope:"global", action: prev ? "update" : "create", ean, changes });
+  await pushHistory({ scope:"item", action: prev ? "update" : "create", ean, changes });
 
-  saveJSON(STORAGE.db, db);
-  renderList();
+  // удобство: после сохранения — форма очищается
   clearForm({ keepEAN:false });
   el.ean.focus();
 }
 
-function deleteItem(ean){
+async function deleteItem(ean){
   if (!ensureUser()) return;
-  if (!isAdmin()) { alert(T().cantEdit); return; }
+  if (!effectiveAdmin()) { alert(T().adminUidNeed); return; }
   if (!confirm(T().delConfirm)) return;
 
-  db = db.filter(x => x.ean !== ean);
-  saveJSON(STORAGE.db, db);
-  pushGlobalHistory("delete", ean, []);
-  renderList();
+  await deleteDoc(doc(fs, "items", ean));
+  await pushHistory({ scope:"global", action:"delete", ean, changes: [] });
+  await pushHistory({ scope:"item", action:"delete", ean, changes: [] });
 }
 
 function fillFormFromItem(it){
@@ -506,10 +750,15 @@ function fillFormFromItem(it){
   window.scrollTo({ top:0, behavior:"smooth" });
 }
 
+/* ==============================
+   List
+============================== */
 function compareItems(a,b,mode){
   const s = (x)=>String(x||"");
-  if (mode==="updated_desc") return (b.updatedAt||0)-(a.updatedAt||0);
-  if (mode==="updated_asc")  return (a.updatedAt||0)-(b.updatedAt||0);
+  const ta = a.updatedAtMs || 0;
+  const tb = b.updatedAtMs || 0;
+  if (mode==="updated_desc") return tb - ta;
+  if (mode==="updated_asc")  return ta - tb;
   if (mode==="qty_desc")     return (b.qty||0)-(a.qty||0);
   if (mode==="loc_asc")      return s(a.loc).localeCompare(s(b.loc),"ru");
   if (mode==="maker_asc")    return s(a.maker).localeCompare(s(b.maker),"ru");
@@ -517,6 +766,7 @@ function compareItems(a,b,mode){
   return 0;
 }
 
+// список пустой, пока нет поиска
 function filterItems(items){
   const q = normText(el.search.value).toLowerCase();
   if (!q) return [];
@@ -571,7 +821,7 @@ function itemCard(it){
   histBtn.textContent = T().hist;
   histBtn.onclick = () => showItemHistory(it.ean);
 
-  if (isAdmin()) {
+  if (effectiveAdmin()) {
     const openBtn = document.createElement("button");
     openBtn.className = "primary";
     openBtn.style.marginTop = "0";
@@ -616,6 +866,7 @@ function renderList(){
   }
 
   const grouped = groupItems(filtered, el.groupBy.value);
+
   if (el.groupBy.value === "none") {
     const items = grouped[T().all] || filtered;
     for (const it of items) el.list.appendChild(itemCard(it));
@@ -640,11 +891,12 @@ function renderList(){
   }
 }
 
+/* ==============================
+   Init / events
+============================== */
 function initUserUI(){
-  buildLangOptions();
-
-  if (user) {
-    el.username.value = user;
+  if (userName) {
+    el.username.value = userName;
     el.username.disabled = true;
     el.confirmUser.disabled = true;
   } else {
@@ -655,12 +907,13 @@ function initUserUI(){
 }
 
 function bindEvents(){
+  // menu
   el.menuBtn.addEventListener("click", openMenu);
   el.menuBack.addEventListener("click", closeMenu);
-
   el.menuHome.addEventListener("click", () => setPage("home"));
   el.menuScan.addEventListener("click", () => setPage("scan"));
 
+  // lang
   el.lang.addEventListener("change", () => {
     lang = el.lang.value;
     saveJSON(STORAGE.lang, lang);
@@ -669,33 +922,71 @@ function bindEvents(){
     setPage(page);
   });
 
+  // user confirm
   el.confirmUser.addEventListener("click", () => {
     const v = normText(el.username.value);
     if (!v) { alert(T().userNeed); return; }
+    userName = v;
     saveJSON(STORAGE.user, v);
     location.reload();
   });
 
+  // admin unlock (UI)
+  el.adminUnlock.addEventListener("click", () => {
+    if (el.adminPass.value !== ADMIN_UI_PASSWORD) {
+      el.adminHint.textContent = T().adminWrong;
+      return;
+    }
+    adminUnlocked = true;
+    saveJSON(STORAGE.adminUnlocked, true);
+    el.adminHint.textContent = T().adminUnlocked;
+    applyAccessVisibility();
+    subscribeGlobalHistory();
+  });
+
+  // camera
   el.start.addEventListener("click", startCamera);
   el.stop.addEventListener("click", stopCamera);
 
+  // form
   el.clear.addEventListener("click", () => { clearForm({ keepEAN:false }); el.ean.focus(); });
   el.save.addEventListener("click", upsertItemFromForm);
 
+  // list
   el.openGlobalHistory.addEventListener("click", showGlobalHistory);
-
   el.search.addEventListener("input", renderList);
   el.groupBy.addEventListener("change", renderList);
   el.sortBy.addEventListener("change", renderList);
 
+  // modal
   el.modalClose.addEventListener("click", closeModal);
   el.modalBack.addEventListener("click", (e) => { if (e.target === el.modalBack) closeModal(); });
 }
 
-function boot(){
+async function boot(){
   initUserUI();
   applyI18n();
-  applyAccessVisibility();
+
+  // sign in anonymously
+  await signInAnonymously(auth);
+
+  onAuthStateChanged(auth, async (u) => {
+    if (!u) return;
+    uid = u.uid;
+
+    // check admin uid
+    const adminDoc = await getDoc(doc(fs, "admins", uid));
+    isAdminUid = adminDoc.exists();
+
+    // hints
+    if (isAdminUid && adminUnlocked) el.adminHint.textContent = T().adminUnlocked;
+    else if (isAdminUid && !adminUnlocked) el.adminHint.textContent = "";
+    else el.adminHint.textContent = "";
+
+    applyAccessVisibility();
+    subscribeItems();
+    if (effectiveAdmin()) subscribeGlobalHistory();
+  });
 
   if (page !== "home" && page !== "scan") page = "home";
   setPage(page);
