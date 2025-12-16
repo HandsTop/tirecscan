@@ -4,20 +4,23 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Tires</title>
-
-  <link rel="stylesheet" href="./styles.css" />
-
-  <!-- библиотека сканера -->
   <script src="https://unpkg.com/html5-qrcode"></script>
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 
 <body>
 <header>
   <div class="row">
-    <button id="menuBtn" class="menuBtn" aria-label="menu">⋮</button>
+    <button id="menuBtn" class="menuBtn" aria-label="menu">☰</button>
+
     <div class="col" style="min-width:180px;">
       <b id="uiTitle">Tires</b>
       <div class="muted" id="pageSubtitle" style="margin-top:4px;"></div>
+    </div>
+
+    <!-- сверху оставляем только краткую строку статуса -->
+    <div class="topRight">
+      <div class="muted" id="topStatus" style="margin-top:0;"></div>
     </div>
   </div>
 </header>
@@ -28,15 +31,30 @@
   <button id="menuHome" class="menuItem"></button>
   <button id="menuScan" class="menuItem"></button>
 
-  <div class="menuSection">
-    <div class="menuTitle" id="menuLangTitle"></div>
-    <select id="lang"></select>
+  <hr style="border:none;border-top:1px solid #23262f;margin:10px 0;" />
 
-    <div class="menuTitle" id="menuUserTitle"></div>
-    <input id="username" />
-    <button id="confirmUser" class="primary"></button>
-    <div class="muted" id="userHint"></div>
+  <label id="lblLang" class="menuLabel"></label>
+  <select id="lang" style="margin-top:6px;">
+    <option value="ru">RU</option>
+    <option value="de">DE</option>
+    <option value="lv">LV</option>
+  </select>
+
+  <label id="lblUser" class="menuLabel"></label>
+  <input id="username" />
+
+  <button id="confirmUser" class="primary" style="margin-top:10px;"></button>
+
+  <div class="muted" id="userHint" style="margin-top:10px;"></div>
+
+  <div id="adminBox" style="display:none;margin-top:12px;">
+    <label id="lblAdminPass" class="menuLabel"></label>
+    <input id="adminPass" type="password" autocomplete="off" />
+    <button id="adminUnlock" class="ghost" style="margin-top:10px;"></button>
+    <div class="muted" id="adminHint" style="margin-top:10px;"></div>
   </div>
+
+  <div class="muted" id="uidLine" style="margin-top:12px;"></div>
 </div>
 
 <main>
@@ -47,6 +65,18 @@
 
   <!-- SCAN PAGE -->
   <div id="pageScan" style="display:none;">
+
+    <!-- Scanner (ALL USERS) -->
+    <section id="scannerCard" class="card">
+      <div class="row" style="align-items:flex-start;">
+        <div class="col"><button id="start" class="primary" style="margin-top:0;"></button></div>
+        <div class="col"><button id="stop" class="danger" style="margin-top:0;" disabled></button></div>
+      </div>
+
+      <div id="reader"></div>
+      <div class="muted" id="status"></div>
+      <div class="muted" id="scanHint"></div>
+    </section>
 
     <!-- Form (ADMIN ONLY) -->
     <section id="formCard" class="card" style="display:none;">
@@ -86,7 +116,7 @@
       <div class="muted" id="rightsHint"></div>
     </section>
 
-    <!-- List + camera -->
+    <!-- List -->
     <section class="card">
       <div class="row" style="align-items:center;">
         <div class="col"><b id="listTitle"></b></div>
@@ -95,21 +125,8 @@
         </div>
       </div>
 
-      <!-- Scanner (ALL USERS) -->
-      <section id="scannerCard" class="card" style="display:none;margin:12px 0 0 0;">
-        <div class="row" style="align-items:flex-start;">
-          <div class="col"><button id="start" class="primary" style="margin-top:0;"></button></div>
-          <div class="col"><button id="stop" class="danger" style="margin-top:0;" disabled></button></div>
-        </div>
-
-        <div id="reader"></div>
-        <div class="muted" id="status"></div>
-        <div class="muted" id="scanHint"></div>
-      </section>
-
       <div class="toolbar">
         <input id="search" />
-
         <div class="row">
           <div class="col">
             <label id="lblGroup" style="margin-top:0;"></label>
@@ -152,7 +169,6 @@
   </div>
 </div>
 
-<!-- твой код приложения -->
-<script src="./app.js"></script>
+<script type="module" src="./app.js"></script>
 </body>
 </html>
