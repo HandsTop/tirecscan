@@ -19,7 +19,6 @@ button:disabled{opacity:.45;}
 .primary{background:#1b3cff;}
 .danger{background:#5a1a1a;}
 .ghost{background:#0e1016;border:1px solid #2a2f3a;}
-
 #reader{width:100%;border-radius:14px;overflow:hidden;background:#000;border:1px solid #23262f;margin-top:12px;}
 
 .toolbar{display:grid;gap:10px;margin-top:10px;}
@@ -50,12 +49,12 @@ details.group>summary::-webkit-details-marker{display:none;}
 .menuBtn{
   width:auto;margin-top:0;padding:10px 12px;border-radius:12px;
   background:#0e1016;border:1px solid #2a2f3a;color:#fff;
-  font-size:20px;line-height:1;
+  font-size:18px;line-height:1;
 }
 .menuBack{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:9998;}
 .menuPanel{
   position:fixed;top:10px;left:10px;z-index:9999;
-  width:280px;max-width:85vw;
+  width:280px;max-width:86vw;
   background:#12141a;border:1px solid #23262f;border-radius:14px;
   padding:10px;
   display:none;
@@ -66,5 +65,5 @@ details.group>summary::-webkit-details-marker{display:none;}
   margin-top:8px;
 }
 .menuItem.active{border-color:#1b3cff;}
-.menuSection{margin-top:10px;padding-top:10px;border-top:1px solid #23262f;}
-.menuTitle{font-size:12px;opacity:.8;margin-top:6px;}
+.menuLabel{margin-top:10px;}
+.topRight{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
