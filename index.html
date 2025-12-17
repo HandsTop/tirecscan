@@ -5,36 +5,16 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Tires</title>
 
-  <!-- Scanner -->
+  <!-- Scanner (global Html5Qrcode) -->
   <script src="https://unpkg.com/html5-qrcode"></script>
 
-  <!--debugscript-->
-  <script>
-(function(){
-  const box = document.createElement('div');
-  box.id = 'errBox';
-  box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;max-height:40vh;overflow:auto;z-index:99999;background:#200;border:1px solid #700;color:#fff;padding:8px;border-radius:10px;font:12px/1.35 ui-monospace,Menlo,monospace;white-space:pre-wrap;display:none;';
-  document.addEventListener('DOMContentLoaded', ()=>document.body.appendChild(box));
-  window.addEventListener('error', (e)=>{
-    box.style.display='block';
-    box.textContent += `JS error: ${e.message}\n${e.filename}:${e.lineno}\n\n`;
-  });
-  window.addEventListener('unhandledrejection', (e)=>{
-    box.style.display='block';
-    box.textContent += `Promise error: ${String(e.reason)}\n\n`;
-  });
-})();
-</script>
-  <!--debugscript-->
-
-  <!-- Your CSS -->
   <link rel="stylesheet" href="./styles.css">
 </head>
 
 <body>
 <header>
   <div class="row" style="align-items:center;">
-    <button id="menuBtn" class="menuBtn" aria-label="menu">☰</button>
+    <button id="menuBtn" class="menuBtn" aria-label="menu">⋯</button>
     <div class="col" style="min-width:180px;">
       <b id="uiTitle">Tires</b>
       <div class="muted" id="pageSubtitle" style="margin-top:4px;"></div>
@@ -186,19 +166,15 @@
   </div>
 </div>
 
-<!-- Error overlay -->
+<!-- Error overlay (ONE) -->
 <div id="errBox" class="errBox">
   <div class="card" style="border-color:#5a1a1a;">
     <b>Ошибка JavaScript</b>
-    <div class="muted">Скопируй текст ниже и пришли мне — я скажу где проблема.</div>
+    <div class="muted">Скопируй текст ниже и пришли мне.</div>
     <pre id="errText" class="mono"></pre>
   </div>
 </div>
 
-<!-- App -->
 <script type="module" src="./app.js"></script>
 </body>
 </html>
-
-
-
