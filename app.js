@@ -1,3 +1,9 @@
+import { db, auth, ensureAuth } from "./firebase-config.js";
+
+await ensureAuth(); // чтобы у всех был uid и доступ к Firestore
+console.log("Firebase OK", auth.currentUser?.uid);
+
+
 /* ========= Error overlay ========= */
 const showErr = (msg) => {
   const box = document.getElementById("errBox");
@@ -691,3 +697,4 @@ const boot = async () => {
 };
 
 boot();
+
