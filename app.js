@@ -1,8 +1,9 @@
 import { db, auth, ensureAuth } from "./firebase-config.js";
 
-await ensureAuth(); // чтобы у всех был uid и доступ к Firestore
-console.log("Firebase OK", auth.currentUser?.uid);
-
+import {
+  doc, setDoc, deleteDoc,
+  onSnapshot, collection, query, orderBy
+} from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
 
 /* ========= Error overlay ========= */
 const showErr = (msg) => {
@@ -14,18 +15,9 @@ const showErr = (msg) => {
 window.addEventListener("error", (e) => showErr(e.error?.stack || e.message));
 window.addEventListener("unhandledrejection", (e) => showErr(e.reason?.stack || e.reason));
 
-/* ========= Firebase (modular CDN) ========= */
-import { firebaseConfig } from "./firebase-config.js"; // <-- ВАЖНО: путь
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
-import {
-  getFirestore, doc, setDoc, deleteDoc,
-  onSnapshot, collection, query, orderBy
-} from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
-import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
-
 /* ========= CONFIG ========= */
 const ADMIN_NAME = "Andrejs O";
-const ADMIN_PASSWORD = "1234"; // <-- поменяй
+const ADMIN_PASSWORD = "1234"; // поменяй
 
 const STORAGE = {
   lang: "tires_lang_cloud_v1",
@@ -37,7 +29,7 @@ const STORAGE = {
 const load = (k, f) => { try { const v = localStorage.getItem(k); return v==null ? f : JSON.parse(v); } catch { return f; } };
 const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 
-/* ========= i18n (минимум RU, чтобы всё работало) ========= */
+/* ========= i18n ========= */
 const I18N = {
   ru: {
     title:"Учёт шин", home:"Дом", scan:"Сканирование",
@@ -54,6 +46,7 @@ const I18N = {
     adminLogout:"Выйти из админа",
     adminOk:"Админ режим включён.",
     adminBad:"Неверный пароль.",
+    adminNameOnly:(name)=>`Админ доступ только для имени: ${name}`,
 
     rightsAdmin:"Права: добавление/редактирование/удаление + общая история.",
     rightsUser:"Права: просмотр + история позиций.",
@@ -88,8 +81,8 @@ const I18N = {
     delConfirm:"Удалить запись?",
     noEan:"Нет EAN (штрих-кода).",
     badQty:"Кол-во должно быть числом (0 или больше).",
-    needHttps:"Нужен HTTPS (GitHub Pages). Открой страницу по ссылке https://...",
-    camFail:"Не удалось включить камеру. Проверь разрешение: Настройки → Safari → Камера.",
+    needHttps:"Нужен HTTPS. Открой сайт по https:// ...",
+    camFail:"Не удалось включить камеру. Проверь разрешение на камеру.",
     cantEdit:"Доступ запрещён (только админ).",
 
     histTitleItem:"История позиции",
@@ -97,13 +90,28 @@ const I18N = {
     close:"Закрыть",
     created:"Создано", updated:"Изменено", deleted:"Удалено",
     field:{ maker:"Марка", tireModel:"Модель", size:"Размер", loc:"Локация", qty:"Кол-во" }
-  }
+  },
+
+  // минимально, чтобы не ломалось при переключении
+  de: { ...this?.ru },
+  lv: { ...this?.ru },
 };
 
 let lang = load(STORAGE.lang, "ru"); if (!I18N[lang]) lang = "ru";
 let user = load(STORAGE.user, "");
 let page = load(STORAGE.page, "home");
 let adminMode = load(STORAGE.admin, false);
+
+const T = () => I18N[lang] || I18N.ru;
+const now = () => Date.now();
+const normEAN = (x) => String(x||"").replace(/\s+/g,"").trim();
+const normText = (x) => String(x||"").trim();
+const isAdmin = () => (user === ADMIN_NAME) && adminMode;
+const ensureUser = () => {
+  if (user) return true;
+  alert(T().userNeed);
+  return false;
+};
 
 /* ========= DOM ========= */
 const $ = (id) => document.getElementById(id);
@@ -149,23 +157,13 @@ const el = {
   modalClose:$("modalClose"),
 };
 
-const T = () => I18N[lang] || I18N.ru;
-const now = () => Date.now();
-const normEAN = (x) => String(x||"").replace(/\s+/g,"").trim();
-const normText = (x) => String(x||"").trim();
-const isAdmin = () => (user === ADMIN_NAME) && adminMode;
-const ensureUser = () => {
-  if (user) return true;
-  alert(T().userNeed);
-  return false;
-};
-
 /* ========= Menu/pages ========= */
 const openMenu = () => { el.menuBack.style.display="block"; el.menuPanel.style.display="block"; };
 const closeMenu = () => { el.menuBack.style.display="none"; el.menuPanel.style.display="none"; };
 
 const setPage = async (next) => {
   page = next; save(STORAGE.page, page);
+
   el.pageHome.style.display = (page==="home") ? "" : "none";
   el.pageScan.style.display = (page==="scan") ? "block" : "none";
   el.pageSubtitle.textContent = (page==="home") ? T().pageHome : T().pageScan;
@@ -233,10 +231,16 @@ const applyI18n = () => {
 };
 
 const applyAccessVisibility = () => {
-  el.scannerCard.style.display = "";                 // всем
+  // Камера — всем
+  el.scannerCard.style.display = "";
+
+  // Форма — только админу
   el.formCard.style.display = isAdmin() ? "" : "none";
+
+  // Общая история — только админу
   el.openGlobalHistory.style.display = isAdmin() ? "" : "none";
 
+  // роль/подсказки
   el.rolePill.style.display = user ? "" : "none";
   el.rolePill.textContent = isAdmin() ? T().roleAdmin : T().roleUser;
 
@@ -246,6 +250,7 @@ const applyAccessVisibility = () => {
 
 const initMenuUserUI = () => {
   el.lang.value = lang;
+
   if (user) {
     el.username.value = user;
     el.username.disabled = true;
@@ -269,26 +274,20 @@ const closeModal = () => {
 };
 
 /* ========= Live data (Firestore) ========= */
-let app, firestore, auth;
 let tires = [];
 let globalHistory = [];
 
 const bootFirebase = async () => {
-  if (!firebaseConfig || !firebaseConfig.apiKey) {
-    throw new Error("firebaseConfig пустой. Проверь firebase-config.js (export const firebaseConfig = {...}).");
-  }
-  app = initializeApp(firebaseConfig);
-  firestore = getFirestore(app);
-  auth = getAuth(app);
-  await signInAnonymously(auth);
+  await ensureAuth();
+  console.log("Firebase OK", auth.currentUser?.uid);
 
-  const qTires = query(collection(firestore, "tires"), orderBy("updatedAt", "desc"));
+  const qTires = query(collection(db, "tires"), orderBy("updatedAt", "desc"));
   onSnapshot(qTires, (snap) => {
     tires = snap.docs.map(d => d.data());
     renderList();
   });
 
-  const qHist = query(collection(firestore, "globalHistory"), orderBy("ts", "desc"));
+  const qHist = query(collection(db, "globalHistory"), orderBy("ts", "desc"));
   onSnapshot(qHist, (snap) => {
     globalHistory = snap.docs.map(d => d.data());
   });
@@ -359,6 +358,7 @@ const stopCamera = async () => {
 const startCamera = async () => {
   if (!ensureUser()) return;
   if (!window.isSecureContext) { alert(T().needHttps); return; }
+  if (typeof Html5Qrcode === "undefined") { showErr("Html5Qrcode не загрузился (проверь скрипт html5-qrcode)."); return; }
 
   if (isAdmin()) clearForm({ keepEAN:false });
 
@@ -380,9 +380,11 @@ const startCamera = async () => {
         if (!v || v === lastScan) return;
         lastScan = v;
 
+        // 1) всем — поиск
         el.search.value = v;
         renderList();
 
+        // 2) админу — заполнить форму
         if (isAdmin()) {
           el.ean.value = v;
           el.maker.value = "";
@@ -395,7 +397,6 @@ const startCamera = async () => {
 
         el.status.textContent = `${T().found}: ${v} ${T().autoOff}`;
         await stopCamera();
-
         el.list.scrollIntoView({ behavior:"smooth", block:"start" });
       },
       () => {}
@@ -412,8 +413,8 @@ const diffItem = (prev, next) => {
   const fields = ["maker","tireModel","size","loc","qty"];
   const changes = [];
   for (const f of fields) {
-    const a = (f==="qty") ? Number(prev[f] ?? 0) : String(prev[f]||"");
-    const b = (f==="qty") ? Number(next[f] ?? 0) : String(next[f]||"");
+    const a = (f==="qty") ? Number(prev?.[f] ?? 0) : String(prev?.[f]||"");
+    const b = (f==="qty") ? Number(next?.[f] ?? 0) : String(next?.[f]||"");
     if (String(a) !== String(b)) changes.push({ field:f, from:a, to:b });
   }
   return changes;
@@ -421,7 +422,7 @@ const diffItem = (prev, next) => {
 
 const pushGlobalHistory = async (action, ean, changes) => {
   const id = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
-  await setDoc(doc(firestore, "globalHistory", id), { ts: now(), user, action, ean, changes: changes || [] });
+  await setDoc(doc(db, "globalHistory", id), { ts: now(), user, action, ean, changes: changes || [] });
 };
 
 const upsertItemFromForm = async () => {
@@ -459,7 +460,7 @@ const upsertItemFromForm = async () => {
     }
   }
 
-  await setDoc(doc(firestore, "tires", ean), next);
+  await setDoc(doc(db, "tires", ean), next);
   clearForm({ keepEAN:false });
   el.ean.focus();
 };
@@ -469,7 +470,7 @@ const deleteItem = async (ean) => {
   if (!isAdmin()) { alert(T().cantEdit); return; }
   if (!confirm(T().delConfirm)) return;
 
-  await deleteDoc(doc(firestore, "tires", ean));
+  await deleteDoc(doc(db, "tires", ean));
   await pushGlobalHistory("delete", ean, []);
 };
 
@@ -495,6 +496,7 @@ const compareItems = (a,b,mode) => {
   return 0;
 };
 
+// важно: пока нет поиска — список пустой
 const filterItems = (items) => {
   const q = normText(el.search.value).toLowerCase();
   if (!q) return [];
@@ -527,6 +529,7 @@ const itemCard = (it) => {
   const head = [it.maker, it.tireModel].filter(Boolean).join(" ") || "—";
   const wrap = document.createElement("div");
   wrap.className = "item";
+
   wrap.innerHTML = `
     <b>${head}</b>
     <div class="small" style="margin-top:6px;">${T().size}: ${it.size ? it.size : "—"}</div>
@@ -593,6 +596,7 @@ const renderList = () => {
   }
 
   const grouped = groupItems(filtered, el.groupBy.value);
+
   if (el.groupBy.value === "none") {
     const items = grouped[T().all] || filtered;
     for (const it of items) el.list.appendChild(itemCard(it));
@@ -647,13 +651,14 @@ const bindEvents = () => {
       adminMode = false;
       save(STORAGE.admin, adminMode);
       el.adminPass.value = "";
+      el.adminHint.textContent = "";
       applyI18n(); applyAccessVisibility(); renderList();
       return;
     }
 
     const p = String(el.adminPass.value || "");
     if (p !== ADMIN_PASSWORD) { el.adminHint.textContent = T().adminBad; return; }
-    if (user !== ADMIN_NAME) { el.adminHint.textContent = `Админ доступ только для имени: ${ADMIN_NAME}`; return; }
+    if (user !== ADMIN_NAME) { el.adminHint.textContent = T().adminNameOnly(ADMIN_NAME); return; }
 
     adminMode = true;
     save(STORAGE.admin, adminMode);
@@ -697,4 +702,3 @@ const boot = async () => {
 };
 
 boot();
-
