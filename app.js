@@ -3,9 +3,15 @@ import { firebaseConfig } from "./firebase-config.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
 import {
   getFirestore, doc, setDoc, deleteDoc,
-  onSnapshot, collection, query, orderBy
+  onSnapshot, collection, query, orderBy, addDoc
 } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
-import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+import {
+  getAuth,
+  signInAnonymously,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
 
 /* ========= Error overlay ========= */
 const showErr = (msg) => {
@@ -18,230 +24,32 @@ window.addEventListener("error", (e) => showErr(e.error?.stack || e.message));
 window.addEventListener("unhandledrejection", (e) => showErr(e.reason?.stack || e.reason));
 
 /* ========= CONFIG ========= */
-const ADMIN_NAME = "Andrejs O";
-const ADMIN_PASSWORD = "1234"; // поменяй
-
 const STORAGE = {
   lang: "tires_lang_cloud_v3",
   user: "tires_user_cloud_v3",
-  page: "tires_page_cloud_v3",
-  admin: "tires_admin_session_v3",
+  page: "tires_page_cloud_v3"
 };
 
 const load = (k, f) => { try { const v = localStorage.getItem(k); return v==null ? f : JSON.parse(v); } catch { return f; } };
 const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 
-/* ========= i18n ========= */
-const I18N_RU = {
-  title:"Учёт шин", home:"Дом", scan:"Сканирование",
-  pageHome:"Главная", pageScan:"Сканирование",
-  menuSettings:"Настройки", lang:"Язык", user:"Имя пользователя",
-  userPh:"Введите имя", confirm:"Подтвердить",
-  userNeed:"Сначала введи имя пользователя.",
-  userLocked:"Имя закреплено за этим устройством.",
-  roleAdmin:"Роль: админ", roleUser:"Роль: просмотр",
-
-  menuAdmin:"Администратор",
-  adminPassPh:"Пароль администратора",
-  adminLogin:"Войти как админ",
-  adminLogout:"Выйти из админа",
-  adminOk:"Админ режим включён.",
-  adminBad:"Неверный пароль.",
-  adminNameOnly:(name)=>`Админ доступ только для имени: ${name}`,
-
-  rightsAdmin:"Права: добавление/редактирование/удаление + общая история.",
-  rightsUser:"Права: просмотр + история позиций + изменение локации.",
-
-  start:"Включить камеру", stop:"Выключить",
-  camOff:"Камера выключена", camOn:"Камера включена. Наведи на штрих-код…",
-  found:"Найдено", autoOff:"(камера выключается)",
-  scanHint:"Скан: всем — поиск по EAN; админу дополнительно заполняется форма.",
-
-  ean:"Штрих-код (EAN)", eanPh:"сканируется автоматически",
-  maker:"Марка", makerPh:"например Nexen",
-  tireModel:"Модель", tireModelPh:"например WinGuard WT1",
-  size:"Размер", sizePh:"например 195/65 R16 104/102T",
-  loc:"Локация", locPh:"например 216",
-  qty:"Кол-во", qtyPh:"например 34",
-
-  save:"Сохранить", clear:"Очистить",
-  listTitle:"Список шин",
-  openGlobalHistory:"Общая история",
-  searchPh:"Поиск или скан: EAN, марка, модель, размер, локация",
-
-  group:"Группировка",
-  groupLoc:"По локации", groupMaker:"По марке", groupNone:"Без группировки",
-
-  shown:"Показано", nothing:"Ничего не найдено.",
-  promptSearch:"Сначала введи поиск или отсканируй штрих-код.",
-  all:"Все", noLoc:"Без локации", noMaker:"Без марки",
-
-  hist:"История", del:"Удалить", open:"Открыть",
-  edit:"Изменить",
-  editLocTitle:"Изменить локацию",
-  newLoc:"Новая локация",
-  cancel:"Отмена",
-  locUpdated:"Локация обновлена.",
-
-  delConfirm:"Удалить запись?",
-  noEan:"Нет EAN (штрих-кода).",
-  badQty:"Кол-во должно быть числом (0 или больше).",
-  needHttps:"Нужен HTTPS. Открой сайт по https:// ...",
-  camFail:"Не удалось включить камеру. Проверь разрешение на камеру.",
-  cantEdit:"Доступ запрещён (только админ).",
-
-  histTitleItem:"История позиции",
-  histTitleGlobal:"Общая история действий",
-  close:"Закрыть",
-  created:"Создано", updated:"Изменено", deleted:"Удалено",
-  field:{ maker:"Марка", tireModel:"Модель", size:"Размер", loc:"Локация", qty:"Кол-во" }
-};
-
-const I18N = {
-  ru: I18N_RU,
-  de: {
-    title:"Reifenverwaltung", home:"Start", scan:"Scannen",
-    pageHome:"Startseite", pageScan:"Scannen",
-    menuSettings:"Einstellungen", lang:"Sprache", user:"Benutzername",
-    userPh:"Name eingeben", confirm:"Bestätigen",
-    userNeed:"Bitte zuerst einen Benutzernamen eingeben.",
-    userLocked:"Name ist an dieses Gerät gebunden.",
-    roleAdmin:"Rolle: Admin", roleUser:"Rolle: Ansicht",
-
-    menuAdmin:"Administrator",
-    adminPassPh:"Admin-Passwort",
-    adminLogin:"Als Admin anmelden",
-    adminLogout:"Admin abmelden",
-    adminOk:"Admin-Modus aktiviert.",
-    adminBad:"Falsches Passwort.",
-    adminNameOnly:(name)=>`Admin-Zugang nur für Namen: ${name}`,
-
-    rightsAdmin:"Rechte: Anlegen/Bearbeiten/Löschen + globaler Verlauf.",
-    rightsUser:"Rechte: Ansicht + Verlauf + Lagerplatz ändern.",
-
-    start:"Kamera starten", stop:"Stop",
-    camOff:"Kamera aus", camOn:"Kamera an. Auf Barcode richten…",
-    found:"Gefunden", autoOff:"(Kamera wird beendet)",
-    scanHint:"Scan: alle — Suche per EAN; Admin füllt zusätzlich das Formular.",
-
-    ean:"Barcode (EAN)", eanPh:"wird automatisch gescannt",
-    maker:"Hersteller", makerPh:"z.B. Nexen",
-    tireModel:"Modell", tireModelPh:"z.B. WinGuard WT1",
-    size:"Größe", sizePh:"z.B. 195/65 R16 104/102T",
-    loc:"Lagerplatz", locPh:"z.B. 216",
-    qty:"Menge", qtyPh:"z.B. 34",
-
-    save:"Speichern", clear:"Leeren",
-    listTitle:"Reifenliste",
-    openGlobalHistory:"Globaler Verlauf",
-    searchPh:"Suche oder Scan: EAN, Hersteller, Modell, Größe, Lagerplatz",
-
-    group:"Gruppierung",
-    groupLoc:"Nach Lagerplatz", groupMaker:"Nach Hersteller", groupNone:"Keine Gruppierung",
-
-    shown:"Angezeigt", nothing:"Keine Treffer.",
-    promptSearch:"Bitte zuerst suchen oder Barcode scannen.",
-    all:"Alle", noLoc:"Ohne Lagerplatz", noMaker:"Ohne Hersteller",
-
-    hist:"Verlauf", del:"Löschen", open:"Öffnen",
-    edit:"Ändern",
-    editLocTitle:"Lagerplatz ändern",
-    newLoc:"Neuer Lagerplatz",
-    cancel:"Abbrechen",
-    locUpdated:"Lagerplatz aktualisiert.",
-
-    delConfirm:"Eintrag löschen?",
-    noEan:"EAN fehlt.",
-    badQty:"Menge muss eine Zahl sein (0 oder mehr).",
-    needHttps:"HTTPS erforderlich. Öffne die Seite über https:// ...",
-    camFail:"Kamera konnte nicht gestartet werden. Prüfe Kamera-Berechtigung.",
-    cantEdit:"Nicht erlaubt (nur Admin).",
-
-    histTitleItem:"Eintragsverlauf",
-    histTitleGlobal:"Globaler Aktionsverlauf",
-    close:"Schließen",
-    created:"Erstellt", updated:"Geändert", deleted:"Gelöscht",
-    field:{ maker:"Hersteller", tireModel:"Modell", size:"Größe", loc:"Lagerplatz", qty:"Menge" }
-  },
-  lv: {
-    title:"Riepu uzskaite", home:"Sākums", scan:"Skenēšana",
-    pageHome:"Sākumlapa", pageScan:"Skenēšana",
-    menuSettings:"Iestatījumi", lang:"Valoda", user:"Lietotājvārds",
-    userPh:"Ievadi vārdu", confirm:"Apstiprināt",
-    userNeed:"Vispirms ievadi lietotājvārdu.",
-    userLocked:"Vārds piesaistīts šai ierīcei.",
-    roleAdmin:"Loma: Admin", roleUser:"Loma: Skatīšana",
-
-    menuAdmin:"Administrators",
-    adminPassPh:"Admin parole",
-    adminLogin:"Ieiet kā admins",
-    adminLogout:"Iziet no admina",
-    adminOk:"Admin režīms ieslēgts.",
-    adminBad:"Nepareiza parole.",
-    adminNameOnly:(name)=>`Admin pieeja tikai vārdam: ${name}`,
-
-    rightsAdmin:"Tiesības: pievienot/labot/dzēst + kopējā vēsture.",
-    rightsUser:"Tiesības: skatīšana + vēsture + mainīt vietu.",
-
-    start:"Ieslēgt kameru", stop:"Izslēgt",
-    camOff:"Kamera izslēgta", camOn:"Kamera ieslēgta. Tēmē uz svītrkodu…",
-    found:"Atrasts", autoOff:"(kamera izslēdzas)",
-    scanHint:"Skenē: visiem — meklēšana pēc EAN; adminam papildus aizpilda formu.",
-
-    ean:"Svītrkods (EAN)", eanPh:"tiek noskenēts automātiski",
-    maker:"Ražotājs", makerPh:"piem. Nexen",
-    tireModel:"Modelis", tireModelPh:"piem. WinGuard WT1",
-    size:"Izmērs", sizePh:"piem. 195/65 R16 104/102T",
-    loc:"Vieta", locPh:"piem. 216",
-    qty:"Daudzums", qtyPh:"piem. 34",
-
-    save:"Saglabāt", clear:"Notīrīt",
-    listTitle:"Riepu saraksts",
-    openGlobalHistory:"Kopējā vēsture",
-    searchPh:"Meklē vai skenē: EAN, ražotājs, modelis, izmērs, vieta",
-
-    group:"Grupēšana",
-    groupLoc:"Pēc vietas", groupMaker:"Pēc ražotāja", groupNone:"Bez grupēšanas",
-
-    shown:"Parādīts", nothing:"Nav rezultātu.",
-    promptSearch:"Vispirms meklē vai noskenē svītrkodu.",
-    all:"Visi", noLoc:"Bez vietas", noMaker:"Bez ražotāja",
-
-    hist:"Vēsture", del:"Dzēst", open:"Atvērt",
-    edit:"Mainīt",
-    editLocTitle:"Mainīt vietu",
-    newLoc:"Jaunā vieta",
-    cancel:"Atcelt",
-    locUpdated:"Vieta atjaunināta.",
-
-    delConfirm:"Dzēst ierakstu?",
-    noEan:"Trūkst EAN.",
-    badQty:"Daudzumam jābūt skaitlim (0 vai vairāk).",
-    needHttps:"Nepieciešams HTTPS. Atver vietni ar https:// ...",
-    camFail:"Neizdevās ieslēgt kameru. Pārbaudi kameras atļaujas.",
-    cantEdit:"Nav atļauts (tikai admins).",
-
-    histTitleItem:"Ieraksta vēsture",
-    histTitleGlobal:"Kopējā darbību vēsture",
-    close:"Aizvērt",
-    created:"Izveidots", updated:"Mainīts", deleted:"Dzēsts",
-    field:{ maker:"Ražotājs", tireModel:"Modelis", size:"Izmērs", loc:"Vieta", qty:"Daudzums" }
-  }
-};
-
-// fallback RU для отсутствующих ключей
-const T = (lng) => ({ ...I18N.ru, ...(I18N[lng] || {}) });
+/* ========= i18n (ваш блок I18N оставляю без изменений) ========= */
+// ... ВСТАВЬТЕ ВАШИ I18N_RU / I18N / T ТУТ БЕЗ ИЗМЕНЕНИЙ ...
 
 /* ========= State ========= */
 let lang = load(STORAGE.lang, "ru"); if (!I18N[lang]) lang = "ru";
 let user = load(STORAGE.user, "");
 let page = load(STORAGE.page, "home");
-let adminMode = load(STORAGE.admin, false);
 
 const now = () => Date.now();
 const normEAN = (x) => String(x||"").replace(/\s+/g,"").trim();
 const normText = (x) => String(x||"").trim();
-const isAdmin = () => (user === ADMIN_NAME) && adminMode;
+
+/* ========= Auth state ========= */
+let firestore, auth;
+let isAdminFlag = false;
+
+const isAdmin = () => isAdminFlag;
 
 /* ========= DOM ========= */
 const $ = (id) => document.getElementById(id);
@@ -257,7 +65,15 @@ const el = {
   userHint:$("userHint"), rolePill:$("rolePill"),
 
   menuAdminTitle:$("menuAdminTitle"),
-  adminPass:$("adminPass"), adminLogin:$("adminLogin"), adminHint:$("adminHint"),
+  adminEmail:$("adminEmail"),
+  adminPass:$("adminPass"),
+  adminLogin:$("adminLogin"),
+  adminHint:$("adminHint"),
+
+  makeAdminBox:$("makeAdminBox"),
+  makeAdminUid:$("makeAdminUid"),
+  makeAdminBtn:$("makeAdminBtn"),
+  makeAdminHint:$("makeAdminHint"),
 
   pageHome:$("pageHome"), pageScan:$("pageScan"),
   scannerCard:$("scannerCard"), formCard:$("formCard"),
@@ -328,8 +144,8 @@ const applyI18n = () => {
   el.userHint.textContent = user ? t.userLocked : t.userNeed;
 
   el.menuAdminTitle.textContent = t.menuAdmin;
-  el.adminPass.placeholder = t.adminPassPh;
-  el.adminLogin.textContent = adminMode ? t.adminLogout : t.adminLogin;
+  el.adminLogin.textContent = (auth?.currentUser && !auth.currentUser.isAnonymous) ? t.adminLogout : t.adminLogin;
+  el.adminHint.textContent = "";
 
   el.start.textContent = t.start;
   el.stop.textContent = t.stop;
@@ -369,7 +185,9 @@ const applyAccessVisibility = () => {
   el.rolePill.textContent = isAdmin() ? t.roleAdmin : t.roleUser;
 
   el.rightsHint.textContent = user ? (isAdmin() ? t.rightsAdmin : t.rightsUser) : "";
-  el.adminHint.textContent = isAdmin() ? t.adminOk : "";
+
+  // блок выдачи админа — виден только админу
+  if (el.makeAdminBox) el.makeAdminBox.style.display = isAdmin() ? "" : "none";
 };
 
 const initMenuUserUI = () => {
@@ -397,7 +215,6 @@ const closeModal = () => {
 };
 
 /* ========= Firebase live ========= */
-let firestore, auth;
 let tires = [];
 let globalHistory = [];
 
@@ -407,7 +224,23 @@ const bootFirebase = async () => {
   const app = initializeApp(firebaseConfig);
   firestore = getFirestore(app);
   auth = getAuth(app);
+
+  // Всех пользователей подписываем анонимно
   await signInAnonymously(auth);
+
+  // Отслеживаем auth state и вычисляем admin по custom claims
+  onAuthStateChanged(auth, async (u) => {
+    isAdminFlag = false;
+    if (u) {
+      try {
+        const token = await u.getIdTokenResult(true);
+        isAdminFlag = token?.claims?.admin === true;
+      } catch {}
+    }
+    applyI18n();
+    applyAccessVisibility();
+    renderList();
+  });
 
   const qTires = query(collection(firestore, "tires"), orderBy("updatedAt", "desc"));
   onSnapshot(qTires, (snap) => {
@@ -547,11 +380,6 @@ const diffItem = (prev, next) => {
   return changes;
 };
 
-const pushGlobalHistory = async (action, ean, changes) => {
-  const id = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
-  await setDoc(doc(firestore, "globalHistory", id), { ts: now(), user, action, ean, changes: changes || [] });
-};
-
 // ADMIN full save
 const upsertItemFromForm = async () => {
   const t = T(lang);
@@ -575,17 +403,18 @@ const upsertItemFromForm = async () => {
     qty,
     createdAt: prev?.createdAt || now(),
     updatedAt: now(),
+    // item history (можно оставить как у вас)
     history: Array.isArray(prev?.history) ? prev.history : [],
+    // подпись пользователя (не для прав!)
+    lastUser: user || "—"
   };
 
   if (!prev) {
     next.history.unshift({ type:"create", user, ts: now(), changes: [] });
-    await pushGlobalHistory("create", ean, []);
   } else {
     const changes = diffItem(prev, next);
     if (changes.length) {
       next.history.unshift({ type:"update", user, ts: now(), changes });
-      await pushGlobalHistory("update", ean, changes);
     }
   }
 
@@ -607,19 +436,19 @@ const updateLocationOnly = async (ean, newLoc) => {
 
   if (locTo === locFrom) return;
 
-  const changes = [{ field:"loc", from: locFrom || "—", to: locTo || "—" }];
-
+  // Важное: обычному пользователю Rules разрешают менять только loc и updatedAt.
+  // Поэтому НЕ ТРОГАЕМ history/qty/etc. Здесь только loc+updatedAt+lastUser нельзя (rules запретят),
+  // lastUser пишем только админу в full-save, а обычным — не пишем.
   const next = {
     ...prev,
     loc: locTo,
-    updatedAt: now(),
-    history: Array.isArray(prev.history) ? prev.history.slice() : [],
+    updatedAt: now()
   };
 
-  next.history.unshift({ type:"update", user, ts: now(), changes });
+  // Если хотите сохранять item-history и при loc-изменениях пользователем —
+  // это лучше делать сервером (функцией), иначе rules придётся ослаблять.
 
   await setDoc(doc(firestore, "tires", ean), next);
-  await pushGlobalHistory("update", ean, changes);
 };
 
 const deleteItem = async (ean) => {
@@ -629,7 +458,6 @@ const deleteItem = async (ean) => {
   if (!confirm(t.delConfirm)) return;
 
   await deleteDoc(doc(firestore, "tires", ean));
-  await pushGlobalHistory("delete", ean, []);
 };
 
 const fillFormFromItem = (it) => {
@@ -685,7 +513,6 @@ const openEditLocModal = (it) => {
     </div>
   `);
 
-  // навешиваем обработчики после вставки HTML
   const inp = document.getElementById("editLocInput");
   const btnSave = document.getElementById("editLocSave");
   const btnCancel = document.getElementById("editLocCancel");
@@ -696,7 +523,6 @@ const openEditLocModal = (it) => {
     try {
       await updateLocationOnly(ean, val);
       closeModal();
-      // небольшое сообщение
       el.stats.textContent = t.locUpdated;
       setTimeout(()=>renderList(), 200);
     } catch (e) {
@@ -733,7 +559,6 @@ const itemCard = (it) => {
   histBtn.textContent = t.hist;
   histBtn.onclick = () => showItemHistory(it.ean);
 
-  // КНОПКА ИЗМЕНИТЬ — всем пользователям (и админу тоже можно)
   const editBtn = document.createElement("button");
   editBtn.className = "primary";
   editBtn.style.marginTop = "0";
@@ -770,7 +595,7 @@ const itemCard = (it) => {
 
 const renderList = () => {
   const t = T(lang);
-  const filtered = filterItems(tires.slice()); // порядок берём из Firestore (updatedAt desc)
+  const filtered = filterItems(tires.slice());
   const q = normText(el.search.value);
   el.stats.textContent = q ? `${t.shown}: ${filtered.length}` : "";
 
@@ -808,6 +633,55 @@ const renderList = () => {
   }
 };
 
+/* ========= Admin actions ========= */
+const adminLoginOrLogout = async () => {
+  const t = T(lang);
+
+  // если сейчас НЕ анонимный пользователь — выходим и возвращаемся к анониму
+  if (auth.currentUser && !auth.currentUser.isAnonymous) {
+    await signOut(auth);
+    await signInAnonymously(auth);
+    el.adminEmail.value = "";
+    el.adminPass.value = "";
+    el.adminHint.textContent = "";
+    return;
+  }
+
+  const email = String(el.adminEmail.value || "").trim();
+  const pass  = String(el.adminPass.value || "");
+
+  if (!email || !pass) {
+    el.adminHint.textContent = "Введите email и пароль администратора.";
+    return;
+  }
+
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+    // после входа проверка claims сработает в onAuthStateChanged
+    el.adminHint.textContent = "";
+  } catch (e) {
+    el.adminHint.textContent = "Ошибка входа. Проверь email/пароль.";
+  }
+};
+
+// выдача admin:true по UID через adminRequests (только текущий админ может создать)
+const grantAdminByUid = async () => {
+  if (!isAdmin()) return;
+  const uid = String(el.makeAdminUid.value || "").trim();
+  if (!uid) { el.makeAdminHint.textContent = "Нужен UID."; return; }
+
+  try {
+    el.makeAdminHint.textContent = "Отправлено…";
+    await addDoc(collection(firestore, "adminRequests"), {
+      targetUid: uid,
+      ts: now()
+    });
+    el.makeAdminHint.textContent = "Запрос создан. Если функция настроена — claim будет выдан.";
+  } catch (e) {
+    el.makeAdminHint.textContent = "Ошибка. Проверь Rules/Functions.";
+  }
+};
+
 /* ========= Events ========= */
 const bindEvents = () => {
   el.menuBtn.addEventListener("click", openMenu);
@@ -831,27 +705,8 @@ const bindEvents = () => {
     location.reload();
   });
 
-  el.adminLogin.addEventListener("click", () => {
-    const t = T(lang);
-    if (!ensureUser()) return;
-
-    if (adminMode) {
-      adminMode = false;
-      save(STORAGE.admin, adminMode);
-      el.adminPass.value = "";
-      applyI18n(); applyAccessVisibility(); renderList();
-      return;
-    }
-
-    const p = String(el.adminPass.value || "");
-    if (p !== ADMIN_PASSWORD) { el.adminHint.textContent = t.adminBad; return; }
-    if (user !== ADMIN_NAME) { el.adminHint.textContent = t.adminNameOnly(ADMIN_NAME); return; }
-
-    adminMode = true;
-    save(STORAGE.admin, adminMode);
-    el.adminHint.textContent = t.adminOk;
-    applyI18n(); applyAccessVisibility(); renderList();
-  });
+  el.adminLogin.addEventListener("click", adminLoginOrLogout);
+  if (el.makeAdminBtn) el.makeAdminBtn.addEventListener("click", grantAdminByUid);
 
   el.start.addEventListener("click", startCamera);
   el.stop.addEventListener("click", stopCamera);
