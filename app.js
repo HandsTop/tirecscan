@@ -30,6 +30,8 @@ const STORAGE = {
   page: "tires_page_cloud_v3"
 };
 
+const ADMIN_EMAIL = "handstop0215@gmail.com";
+
 const load = (k, f) => { try { const v = localStorage.getItem(k); return v==null ? f : JSON.parse(v); } catch { return f; } };
 const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 
@@ -47,9 +49,7 @@ const normText = (x) => String(x||"").trim();
 
 /* ========= Auth state ========= */
 let firestore, auth;
-let isAdminFlag = false;
-
-const isAdmin = () => isAdminFlag;
+const isAdmin = () => auth?.currentUser?.email === ADMIN_EMAIL;
 
 /* ========= DOM ========= */
 const $ = (id) => document.getElementById(id);
@@ -69,11 +69,6 @@ const el = {
   adminPass:$("adminPass"),
   adminLogin:$("adminLogin"),
   adminHint:$("adminHint"),
-
-  makeAdminBox:$("makeAdminBox"),
-  makeAdminUid:$("makeAdminUid"),
-  makeAdminBtn:$("makeAdminBtn"),
-  makeAdminHint:$("makeAdminHint"),
 
   pageHome:$("pageHome"), pageScan:$("pageScan"),
   scannerCard:$("scannerCard"), formCard:$("formCard"),
@@ -185,9 +180,6 @@ const applyAccessVisibility = () => {
   el.rolePill.textContent = isAdmin() ? t.roleAdmin : t.roleUser;
 
   el.rightsHint.textContent = user ? (isAdmin() ? t.rightsAdmin : t.rightsUser) : "";
-
-  // блок выдачи админа — виден только админу
-  if (el.makeAdminBox) el.makeAdminBox.style.display = isAdmin() ? "" : "none";
 };
 
 const initMenuUserUI = () => {
@@ -227,20 +219,6 @@ const bootFirebase = async () => {
 
   // Всех пользователей подписываем анонимно
   await signInAnonymously(auth);
-
-  // Отслеживаем auth state и вычисляем admin по custom claims
-  onAuthStateChanged(auth, async (u) => {
-    isAdminFlag = false;
-    if (u) {
-      try {
-        const token = await u.getIdTokenResult(true);
-        isAdminFlag = token?.claims?.admin === true;
-      } catch {}
-    }
-    applyI18n();
-    applyAccessVisibility();
-    renderList();
-  });
 
   const qTires = query(collection(firestore, "tires"), orderBy("updatedAt", "desc"));
   onSnapshot(qTires, (snap) => {
@@ -664,24 +642,6 @@ const adminLoginOrLogout = async () => {
   }
 };
 
-// выдача admin:true по UID через adminRequests (только текущий админ может создать)
-const grantAdminByUid = async () => {
-  if (!isAdmin()) return;
-  const uid = String(el.makeAdminUid.value || "").trim();
-  if (!uid) { el.makeAdminHint.textContent = "Нужен UID."; return; }
-
-  try {
-    el.makeAdminHint.textContent = "Отправлено…";
-    await addDoc(collection(firestore, "adminRequests"), {
-      targetUid: uid,
-      ts: now()
-    });
-    el.makeAdminHint.textContent = "Запрос создан. Если функция настроена — claim будет выдан.";
-  } catch (e) {
-    el.makeAdminHint.textContent = "Ошибка. Проверь Rules/Functions.";
-  }
-};
-
 /* ========= Events ========= */
 const bindEvents = () => {
   el.menuBtn.addEventListener("click", openMenu);
@@ -706,7 +666,6 @@ const bindEvents = () => {
   });
 
   el.adminLogin.addEventListener("click", adminLoginOrLogout);
-  if (el.makeAdminBtn) el.makeAdminBtn.addEventListener("click", grantAdminByUid);
 
   el.start.addEventListener("click", startCamera);
   el.stop.addEventListener("click", stopCamera);
@@ -724,22 +683,27 @@ const bindEvents = () => {
 };
 
 /* ========= Boot ========= */
-const boot = async () => {
-  initMenuUserUI();
-  applyI18n();
-  applyAccessVisibility();
+const bootFirebase = async () => {
+  if (!firebaseConfig?.apiKey) throw new Error("firebaseConfig пустой");
 
-  if (page !== "home" && page !== "scan") page = "home";
-  await setPage(page);
+  const app = initializeApp(firebaseConfig);
+  firestore = getFirestore(app);
+  auth = getAuth(app);
 
-  bindEvents();
-  renderList();
+  await signInAnonymously(auth);
 
-  try {
-    await bootFirebase();
-  } catch(e) {
-    showErr(e?.stack || e);
-  }
+  onAuthStateChanged(auth, () => {
+    applyI18n();
+    applyAccessVisibility();
+    renderList();
+  });
+
+  const qTires = query(collection(firestore, "tires"), orderBy("updatedAt", "desc"));
+  onSnapshot(qTires, (snap) => {
+    tires = snap.docs.map(d => d.data());
+    renderList();
+  });
 };
 
 boot();
+
