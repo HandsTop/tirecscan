@@ -49,7 +49,7 @@ details.group>summary::-webkit-details-marker{display:none;}
 .menuBtn{
   width:auto;margin-top:0;padding:10px 12px;border-radius:12px;
   background:#0e1016;border:1px solid #2a2f3a;color:#fff;
-  font-size:18px;line-height:1;
+  font-size:20px;line-height:1;
 }
 .menuBack{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:9998;}
 .menuPanel{
