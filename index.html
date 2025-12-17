@@ -49,11 +49,25 @@
 
   <div class="menuBlock">
     <div class="menuTitle" id="menuAdminTitle"></div>
-    <input id="adminPass" type="password" autocomplete="off" />
+
+    <!-- Админ логин: email/password -->
+    <label style="margin-top:0;">Email</label>
+    <input id="adminEmail" type="email" autocomplete="username" />
+
+    <label>Password</label>
+    <input id="adminPass" type="password" autocomplete="current-password" />
+
     <button id="adminLogin" class="ghost"></button>
     <div class="muted" id="adminHint"></div>
+
+    <!-- Кнопка "сделать админом" (видна только админу) -->
+    <div id="makeAdminBox" style="display:none;margin-top:10px;">
+      <label>Make user admin (UID)</label>
+      <input id="makeAdminUid" />
+      <button id="makeAdminBtn" class="primary">Grant admin</button>
+      <div class="muted" id="makeAdminHint"></div>
+    </div>
   </div>
-</div>
 
 <main>
   <!-- HOME -->
@@ -167,3 +181,4 @@
 <script type="module" src="./app.js"></script>
 </body>
 </html>
+
