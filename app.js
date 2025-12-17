@@ -22,10 +22,10 @@ const ADMIN_NAME = "Andrejs O";
 const ADMIN_PASSWORD = "1234"; // поменяй
 
 const STORAGE = {
-  lang: "tires_lang_cloud_v2",
-  user: "tires_user_cloud_v2",
-  page: "tires_page_cloud_v2",
-  admin: "tires_admin_session_v2",
+  lang: "tires_lang_cloud_v3",
+  user: "tires_user_cloud_v3",
+  page: "tires_page_cloud_v3",
+  admin: "tires_admin_session_v3",
 };
 
 const load = (k, f) => { try { const v = localStorage.getItem(k); return v==null ? f : JSON.parse(v); } catch { return f; } };
@@ -50,7 +50,7 @@ const I18N_RU = {
   adminNameOnly:(name)=>`Админ доступ только для имени: ${name}`,
 
   rightsAdmin:"Права: добавление/редактирование/удаление + общая история.",
-  rightsUser:"Права: просмотр + история позиций.",
+  rightsUser:"Права: просмотр + история позиций + изменение локации.",
 
   start:"Включить камеру", stop:"Выключить",
   camOff:"Камера выключена", camOn:"Камера включена. Наведи на штрих-код…",
@@ -69,16 +69,20 @@ const I18N_RU = {
   openGlobalHistory:"Общая история",
   searchPh:"Поиск или скан: EAN, марка, модель, размер, локация",
 
-  group:"Группировка", sort:"Сортировка",
+  group:"Группировка",
   groupLoc:"По локации", groupMaker:"По марке", groupNone:"Без группировки",
-  sortNew:"Сначала новые", sortOld:"Сначала старые", sortQty:"Кол-во ↓",
-  sortLoc:"Локация A→Z", sortMaker:"Марка A→Z", sortModel:"Модель A→Z",
 
   shown:"Показано", nothing:"Ничего не найдено.",
   promptSearch:"Сначала введи поиск или отсканируй штрих-код.",
   all:"Все", noLoc:"Без локации", noMaker:"Без марки",
 
   hist:"История", del:"Удалить", open:"Открыть",
+  edit:"Изменить",
+  editLocTitle:"Изменить локацию",
+  newLoc:"Новая локация",
+  cancel:"Отмена",
+  locUpdated:"Локация обновлена.",
+
   delConfirm:"Удалить запись?",
   noEan:"Нет EAN (штрих-кода).",
   badQty:"Кол-во должно быть числом (0 или больше).",
@@ -113,7 +117,7 @@ const I18N = {
     adminNameOnly:(name)=>`Admin-Zugang nur für Namen: ${name}`,
 
     rightsAdmin:"Rechte: Anlegen/Bearbeiten/Löschen + globaler Verlauf.",
-    rightsUser:"Rechte: Ansicht + Eintragsverlauf.",
+    rightsUser:"Rechte: Ansicht + Verlauf + Lagerplatz ändern.",
 
     start:"Kamera starten", stop:"Stop",
     camOff:"Kamera aus", camOn:"Kamera an. Auf Barcode richten…",
@@ -132,16 +136,20 @@ const I18N = {
     openGlobalHistory:"Globaler Verlauf",
     searchPh:"Suche oder Scan: EAN, Hersteller, Modell, Größe, Lagerplatz",
 
-    group:"Gruppierung", sort:"Sortierung",
+    group:"Gruppierung",
     groupLoc:"Nach Lagerplatz", groupMaker:"Nach Hersteller", groupNone:"Keine Gruppierung",
-    sortNew:"Neueste zuerst", sortOld:"Älteste zuerst", sortQty:"Menge ↓",
-    sortLoc:"Lagerplatz A→Z", sortMaker:"Hersteller A→Z", sortModel:"Modell A→Z",
 
     shown:"Angezeigt", nothing:"Keine Treffer.",
     promptSearch:"Bitte zuerst suchen oder Barcode scannen.",
     all:"Alle", noLoc:"Ohne Lagerplatz", noMaker:"Ohne Hersteller",
 
     hist:"Verlauf", del:"Löschen", open:"Öffnen",
+    edit:"Ändern",
+    editLocTitle:"Lagerplatz ändern",
+    newLoc:"Neuer Lagerplatz",
+    cancel:"Abbrechen",
+    locUpdated:"Lagerplatz aktualisiert.",
+
     delConfirm:"Eintrag löschen?",
     noEan:"EAN fehlt.",
     badQty:"Menge muss eine Zahl sein (0 oder mehr).",
@@ -173,7 +181,7 @@ const I18N = {
     adminNameOnly:(name)=>`Admin pieeja tikai vārdam: ${name}`,
 
     rightsAdmin:"Tiesības: pievienot/labot/dzēst + kopējā vēsture.",
-    rightsUser:"Tiesības: skatīšana + pozīcijas vēsture.",
+    rightsUser:"Tiesības: skatīšana + vēsture + mainīt vietu.",
 
     start:"Ieslēgt kameru", stop:"Izslēgt",
     camOff:"Kamera izslēgta", camOn:"Kamera ieslēgta. Tēmē uz svītrkodu…",
@@ -192,16 +200,20 @@ const I18N = {
     openGlobalHistory:"Kopējā vēsture",
     searchPh:"Meklē vai skenē: EAN, ražotājs, modelis, izmērs, vieta",
 
-    group:"Grupēšana", sort:"Kārtošana",
+    group:"Grupēšana",
     groupLoc:"Pēc vietas", groupMaker:"Pēc ražotāja", groupNone:"Bez grupēšanas",
-    sortNew:"Jaunākie vispirms", sortOld:"Vecākie vispirms", sortQty:"Daudzums ↓",
-    sortLoc:"Vieta A→Z", sortMaker:"Ražotājs A→Z", sortModel:"Modelis A→Z",
 
     shown:"Parādīts", nothing:"Nav rezultātu.",
     promptSearch:"Vispirms meklē vai noskenē svītrkodu.",
     all:"Visi", noLoc:"Bez vietas", noMaker:"Bez ražotāja",
 
     hist:"Vēsture", del:"Dzēst", open:"Atvērt",
+    edit:"Mainīt",
+    editLocTitle:"Mainīt vietu",
+    newLoc:"Jaunā vieta",
+    cancel:"Atcelt",
+    locUpdated:"Vieta atjaunināta.",
+
     delConfirm:"Dzēst ierakstu?",
     noEan:"Trūkst EAN.",
     badQty:"Daudzumam jābūt skaitlim (0 vai vairāk).",
@@ -217,8 +229,8 @@ const I18N = {
   }
 };
 
-// важное: fallback на RU для отсутствующих ключей
-const T = (lang) => ({ ...I18N.ru, ...(I18N[lang] || {}) });
+// fallback RU для отсутствующих ключей
+const T = (lng) => ({ ...I18N.ru, ...(I18N[lng] || {}) });
 
 /* ========= State ========= */
 let lang = load(STORAGE.lang, "ru"); if (!I18N[lang]) lang = "ru";
@@ -266,7 +278,6 @@ const el = {
   openGlobalHistory:$("openGlobalHistory"),
   search:$("search"),
   lblGroup:$("lblGroup"), groupBy:$("groupBy"),
-  lblSort:$("lblSort"), sortBy:$("sortBy"),
   stats:$("stats"), list:$("list"),
 
   modalBack:$("modalBack"),
@@ -340,18 +351,9 @@ const applyI18n = () => {
   el.search.placeholder = t.searchPh;
 
   el.lblGroup.textContent = t.group;
-  el.lblSort.textContent = t.sort;
-
   el.groupBy.options[0].text = t.groupLoc;
   el.groupBy.options[1].text = t.groupMaker;
   el.groupBy.options[2].text = t.groupNone;
-
-  el.sortBy.options[0].text = t.sortNew;
-  el.sortBy.options[1].text = t.sortOld;
-  el.sortBy.options[2].text = t.sortQty;
-  el.sortBy.options[3].text = t.sortLoc;
-  el.sortBy.options[4].text = t.sortMaker;
-  el.sortBy.options[5].text = t.sortModel;
 
   el.modalClose.textContent = t.close;
 };
@@ -507,11 +509,9 @@ const startCamera = async () => {
         if (!v || v === lastScan) return;
         lastScan = v;
 
-        // всем: поиск
         el.search.value = v;
         renderList();
 
-        // админу: заполнить форму
         if (isAdmin()) {
           el.ean.value = v;
           el.maker.value = "";
@@ -535,7 +535,7 @@ const startCamera = async () => {
   }
 };
 
-/* ========= Admin write ========= */
+/* ========= Writes ========= */
 const diffItem = (prev, next) => {
   const fields = ["maker","tireModel","size","loc","qty"];
   const changes = [];
@@ -552,6 +552,7 @@ const pushGlobalHistory = async (action, ean, changes) => {
   await setDoc(doc(firestore, "globalHistory", id), { ts: now(), user, action, ean, changes: changes || [] });
 };
 
+// ADMIN full save
 const upsertItemFromForm = async () => {
   const t = T(lang);
   if (!ensureUser()) return;
@@ -593,6 +594,34 @@ const upsertItemFromForm = async () => {
   el.ean.focus();
 };
 
+// USER (and admin) can change location
+const updateLocationOnly = async (ean, newLoc) => {
+  const t = T(lang);
+  if (!ensureUser()) return;
+
+  const prev = tires.find(x => x.ean === ean);
+  if (!prev) return;
+
+  const locTo = normText(newLoc);
+  const locFrom = String(prev.loc || "");
+
+  if (locTo === locFrom) return;
+
+  const changes = [{ field:"loc", from: locFrom || "—", to: locTo || "—" }];
+
+  const next = {
+    ...prev,
+    loc: locTo,
+    updatedAt: now(),
+    history: Array.isArray(prev.history) ? prev.history.slice() : [],
+  };
+
+  next.history.unshift({ type:"update", user, ts: now(), changes });
+
+  await setDoc(doc(firestore, "tires", ean), next);
+  await pushGlobalHistory("update", ean, changes);
+};
+
 const deleteItem = async (ean) => {
   const t = T(lang);
   if (!ensureUser()) return;
@@ -614,17 +643,6 @@ const fillFormFromItem = (it) => {
 };
 
 /* ========= List ========= */
-const compareItems = (a,b,mode) => {
-  const s = (x)=>String(x||"");
-  if (mode==="updated_desc") return (b.updatedAt||0)-(a.updatedAt||0);
-  if (mode==="updated_asc")  return (a.updatedAt||0)-(b.updatedAt||0);
-  if (mode==="qty_desc")     return (b.qty||0)-(a.qty||0);
-  if (mode==="loc_asc")      return s(a.loc).localeCompare(s(b.loc),"ru");
-  if (mode==="maker_asc")    return s(a.maker).localeCompare(s(b.maker),"ru");
-  if (mode==="model_asc")    return s(a.tireModel).localeCompare(s(b.tireModel),"ru");
-  return 0;
-};
-
 const filterItems = (items) => {
   const q = normText(el.search.value).toLowerCase();
   if (!q) return [];
@@ -654,6 +672,41 @@ const groupItems = (items, mode) => {
   return out;
 };
 
+const openEditLocModal = (it) => {
+  const t = T(lang);
+  const ean = it.ean;
+
+  openModal(`${t.editLocTitle}: ${ean}`, `
+    <label>${t.newLoc}</label>
+    <input id="editLocInput" value="${String(it.loc || "")}" />
+    <div class="row" style="margin-top:12px;">
+      <div class="col"><button id="editLocSave" class="primary" style="margin-top:0;">${t.save}</button></div>
+      <div class="col"><button id="editLocCancel" class="ghost" style="margin-top:0;">${t.cancel}</button></div>
+    </div>
+  `);
+
+  // навешиваем обработчики после вставки HTML
+  const inp = document.getElementById("editLocInput");
+  const btnSave = document.getElementById("editLocSave");
+  const btnCancel = document.getElementById("editLocCancel");
+
+  btnCancel.onclick = () => closeModal();
+  btnSave.onclick = async () => {
+    const val = inp.value;
+    try {
+      await updateLocationOnly(ean, val);
+      closeModal();
+      // небольшое сообщение
+      el.stats.textContent = t.locUpdated;
+      setTimeout(()=>renderList(), 200);
+    } catch (e) {
+      showErr(e?.stack || e);
+    }
+  };
+
+  setTimeout(()=>inp?.focus(), 50);
+};
+
 const itemCard = (it) => {
   const t = T(lang);
   const head = [it.maker, it.tireModel].filter(Boolean).join(" ") || "—";
@@ -680,9 +733,16 @@ const itemCard = (it) => {
   histBtn.textContent = t.hist;
   histBtn.onclick = () => showItemHistory(it.ean);
 
+  // КНОПКА ИЗМЕНИТЬ — всем пользователям (и админу тоже можно)
+  const editBtn = document.createElement("button");
+  editBtn.className = "primary";
+  editBtn.style.marginTop = "0";
+  editBtn.textContent = t.edit;
+  editBtn.onclick = () => openEditLocModal(it);
+
   if (isAdmin()) {
     const openBtn = document.createElement("button");
-    openBtn.className = "primary";
+    openBtn.className = "ghost";
     openBtn.style.marginTop = "0";
     openBtn.textContent = t.open;
     openBtn.onclick = () => fillFormFromItem(it);
@@ -695,13 +755,13 @@ const itemCard = (it) => {
 
     const c1 = document.createElement("div"); c1.className = "col"; c1.appendChild(openBtn);
     const c2 = document.createElement("div"); c2.className = "col"; c2.appendChild(histBtn);
-    const c3 = document.createElement("div"); c3.className = "col"; c3.appendChild(delBtn);
-    btnRow.appendChild(c1); btnRow.appendChild(c2); btnRow.appendChild(c3);
+    const c3 = document.createElement("div"); c3.className = "col"; c3.appendChild(editBtn);
+    const c4 = document.createElement("div"); c4.className = "col"; c4.appendChild(delBtn);
+    btnRow.appendChild(c1); btnRow.appendChild(c2); btnRow.appendChild(c3); btnRow.appendChild(c4);
   } else {
-    const c = document.createElement("div");
-    c.className = "col";
-    c.appendChild(histBtn);
-    btnRow.appendChild(c);
+    const c1 = document.createElement("div"); c1.className = "col"; c1.appendChild(histBtn);
+    const c2 = document.createElement("div"); c2.className = "col"; c2.appendChild(editBtn);
+    btnRow.appendChild(c1); btnRow.appendChild(c2);
   }
 
   wrap.appendChild(btnRow);
@@ -710,9 +770,7 @@ const itemCard = (it) => {
 
 const renderList = () => {
   const t = T(lang);
-  const filtered = filterItems(tires.slice());
-  filtered.sort((a,b)=>compareItems(a,b,el.sortBy.value));
-
+  const filtered = filterItems(tires.slice()); // порядок берём из Firestore (updatedAt desc)
   const q = normText(el.search.value);
   el.stats.textContent = q ? `${t.shown}: ${filtered.length}` : "";
 
@@ -805,7 +863,6 @@ const bindEvents = () => {
 
   el.search.addEventListener("input", renderList);
   el.groupBy.addEventListener("change", renderList);
-  el.sortBy.addEventListener("change", renderList);
 
   el.modalClose.addEventListener("click", closeModal);
   el.modalBack.addEventListener("click", (e) => { if (e.target === el.modalBack) closeModal(); });
