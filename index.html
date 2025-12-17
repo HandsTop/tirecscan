@@ -8,6 +8,25 @@
   <!-- Scanner -->
   <script src="https://unpkg.com/html5-qrcode"></script>
 
+  <!--debugscript-->
+  <script>
+(function(){
+  const box = document.createElement('div');
+  box.id = 'errBox';
+  box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;max-height:40vh;overflow:auto;z-index:99999;background:#200;border:1px solid #700;color:#fff;padding:8px;border-radius:10px;font:12px/1.35 ui-monospace,Menlo,monospace;white-space:pre-wrap;display:none;';
+  document.addEventListener('DOMContentLoaded', ()=>document.body.appendChild(box));
+  window.addEventListener('error', (e)=>{
+    box.style.display='block';
+    box.textContent += `JS error: ${e.message}\n${e.filename}:${e.lineno}\n\n`;
+  });
+  window.addEventListener('unhandledrejection', (e)=>{
+    box.style.display='block';
+    box.textContent += `Promise error: ${String(e.reason)}\n\n`;
+  });
+})();
+</script>
+  <!--debugscript-->
+
   <!-- Your CSS -->
   <link rel="stylesheet" href="./styles.css">
 </head>
@@ -180,3 +199,4 @@
 <script type="module" src="./app.js"></script>
 </body>
 </html>
+
