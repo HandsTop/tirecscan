@@ -1,4 +1,4 @@
-<script type="module">
+
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
   import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
@@ -19,4 +19,3 @@
   await signInAnonymously(auth);
 
   console.log("🔥 Firebase подключён");
-</script>
