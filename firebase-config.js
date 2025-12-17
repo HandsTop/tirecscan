@@ -1,19 +1,22 @@
-<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
 
-  // Your web app's Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyDBrQ-DDu9qbeteJQ804VIJ_r8XQ-2RjdA",
-    authDomain: "tire-shop-52e54.firebaseapp.com",
-    projectId: "tire-shop-52e54",
-    storageBucket: "tire-shop-52e54.firebasestorage.app",
-    messagingSenderId: "66109894982",
-    appId: "1:66109894982:web:bb7241c0c22bb6b8857547"
-  };
+export const firebaseConfig = {
+  apiKey: "AIzaSyDBrQ-DDu9qbeteJQ804VIJ_r8XQ-2RjdA",
+  authDomain: "tire-shop-52e54.firebaseapp.com",
+  projectId: "tire-shop-52e54",
+  storageBucket: "tire-shop-52e54.firebasestorage.app",
+  messagingSenderId: "66109894982",
+  appId: "1:66109894982:web:bb7241c0c22bb6b8857547"
+};
 
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-</script>
+export const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app);
+export const auth = getAuth(app);
+
+export async function ensureAuth() {
+  if (auth.currentUser) return auth.currentUser;
+  const cred = await signInAnonymously(auth);
+  return cred.user;
+}
