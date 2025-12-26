@@ -47,10 +47,10 @@
     <div class="pill" id="rolePill" style="display:none;"></div>
   </div>
 
+  <!-- Admin (Email/Password) -->
   <div class="menuBlock">
     <div class="menuTitle" id="menuAdminTitle"></div>
 
-    <!-- Админ логин: email/password -->
     <label style="margin-top:0;">Email</label>
     <input id="adminEmail" type="email" autocomplete="username" />
 
@@ -59,15 +59,8 @@
 
     <button id="adminLogin" class="ghost"></button>
     <div class="muted" id="adminHint"></div>
-
-    <!-- Кнопка "сделать админом" (видна только админу) -->
-    <div id="makeAdminBox" style="display:none;margin-top:10px;">
-      <label>Make user admin (UID)</label>
-      <input id="makeAdminUid" />
-      <button id="makeAdminBtn" class="primary">Grant admin</button>
-      <div class="muted" id="makeAdminHint"></div>
-    </div>
   </div>
+</div>
 
 <main>
   <!-- HOME -->
@@ -181,4 +174,3 @@
 <script type="module" src="./app.js"></script>
 </body>
 </html>
-
