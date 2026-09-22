@@ -1,176 +1,134 @@
 <!doctype html>
-<html lang="ru">
+<html lang="de">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Tires</title>
-
-  <!-- Scanner -->
-  <script src="https://unpkg.com/html5-qrcode"></script>
-
-  <!-- CSS -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#27a844">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.cloudfunctions.net; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
+  <title>TireScan Kommissionierung</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
-
 <body>
-<header>
-  <div class="row" style="align-items:center;">
-    <button id="menuBtn" class="menuBtn" aria-label="menu">⋯</button>
-    <div class="col" style="min-width:180px;">
-      <b id="uiTitle">Tires</b>
-      <div class="muted" id="pageSubtitle" style="margin-top:4px;"></div>
+  <section id="loginView" class="auth-view">
+    <div class="auth-card">
+      <img src="./logo.png" alt="TireScan" class="auth-logo">
+      <h1>TireScan</h1>
+      <p class="muted" data-i18n="secureLogin">Sichere Anmeldung für Lagermitarbeiter</p>
+      <form id="loginForm" novalidate>
+        <label for="email">E-Mail</label>
+        <input id="email" type="email" autocomplete="username" maxlength="254" required>
+        <label for="password">Passwort</label>
+        <input id="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required>
+        <button class="primary" type="submit" data-i18n="login">Anmelden</button>
+      </form>
+      <p id="loginMessage" class="message" role="alert"></p>
     </div>
-  </div>
-</header>
-
-<!-- Menu overlay -->
-<div id="menuBack" class="menuBack"></div>
-<div id="menuPanel" class="menuPanel" role="menu">
-  <button id="menuHome" class="menuItem"></button>
-  <button id="menuScan" class="menuItem"></button>
-
-  <div class="menuBlock">
-    <div class="menuTitle" id="menuSettingsTitle"></div>
-
-    <label id="lblLang" style="margin-top:0;"></label>
-    <select id="lang">
-      <option value="ru">RU</option>
-      <option value="de">DE</option>
-      <option value="lv">LV</option>
-    </select>
-
-    <label id="lblUser" style="margin-top:10px;"></label>
-    <input id="username" />
-    <button id="confirmUser" class="primary"></button>
-
-    <div class="muted" id="userHint"></div>
-    <div class="pill" id="rolePill" style="display:none;"></div>
-  </div>
-
-  <!-- Admin (Email/Password) -->
-  <div class="menuBlock">
-    <div class="menuTitle" id="menuAdminTitle"></div>
-
-    <label style="margin-top:0;">Email</label>
-    <input id="adminEmail" type="email" autocomplete="username" />
-
-    <label>Password</label>
-    <input id="adminPass" type="password" autocomplete="current-password" />
-
-    <button id="adminLogin" class="ghost"></button>
-    <div class="muted" id="adminHint"></div>
-  </div>
-</div>
-
-<main>
-  <!-- HOME -->
-  <section id="pageHome" class="homeFull" style="display:none;">
-    <img class="homeLogo" src="logo.png" alt="Logo">
   </section>
 
-  <!-- SCAN -->
-  <div id="pageScan" style="display:none;">
-
-    <!-- Scanner (ALL USERS) -->
-    <section id="scannerCard" class="card" style="display:none;">
-      <div class="row" style="align-items:flex-start;">
-        <div class="col"><button id="start" class="primary" style="margin-top:0;"></button></div>
-        <div class="col"><button id="stop" class="danger" style="margin-top:0;" disabled></button></div>
-      </div>
-      <div id="reader"></div>
-      <div class="muted" id="status"></div>
-      <div class="muted" id="scanHint"></div>
-    </section>
-
-    <!-- Form (ADMIN ONLY) -->
-    <section id="formCard" class="card" style="display:none;">
-      <label id="lblEan"></label>
-      <input id="ean" inputmode="numeric" />
-
-      <div class="row" style="margin-top:10px;">
-        <div class="col">
-          <label id="lblMaker" style="margin-top:0;"></label>
-          <input id="maker" />
-        </div>
-        <div class="col">
-          <label id="lblTireModel" style="margin-top:0;"></label>
-          <input id="tireModel" />
-        </div>
-      </div>
-
-      <label id="lblSize"></label>
-      <input id="size" />
-
-      <div class="row" style="margin-top:10px;">
-        <div class="col">
-          <label id="lblLoc" style="margin-top:0;"></label>
-          <input id="loc" />
-        </div>
-        <div class="col">
-          <label id="lblQty" style="margin-top:0;"></label>
-          <input id="qty" type="number" min="0" />
-        </div>
-      </div>
-
-      <div class="row" style="margin-top:12px;">
-        <div class="col"><button id="save" class="primary" style="margin-top:0;"></button></div>
-        <div class="col"><button id="clear" class="ghost" style="margin-top:0;"></button></div>
-      </div>
-
-      <div class="muted" id="rightsHint"></div>
-    </section>
-
-    <!-- List -->
-    <section class="card">
-      <div class="row" style="align-items:center;">
-        <div class="col"><b id="listTitle"></b></div>
-        <div class="col">
-          <button id="openGlobalHistory" class="ghost" style="margin-top:0;"></button>
-        </div>
-      </div>
-
-      <div class="toolbar">
-        <input id="search" />
-
-        <div class="row">
-          <div class="col">
-            <label id="lblGroup" style="margin-top:0;"></label>
-            <select id="groupBy">
-              <option value="location"></option>
-              <option value="maker"></option>
-              <option value="none"></option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div class="muted" id="stats" style="margin-top:10px;"></div>
-      <div id="list"></div>
-    </section>
-
-  </div>
-</main>
-
-<!-- Modal -->
-<div id="modalBack" class="modalBack" role="dialog" aria-modal="true">
-  <div class="modal">
-    <div class="modalTop">
-      <b id="modalTitle"></b>
-      <button id="modalClose" class="modalClose"></button>
+  <section id="pendingView" class="auth-view hidden">
+    <div class="auth-card">
+      <img src="./logo.png" alt="TireScan" class="auth-logo small-logo">
+      <h1 data-i18n="waiting">Konto wartet auf Freigabe</h1>
+      <p class="muted" data-i18n="askAdmin">Ein Administrator muss dieses Konto aktivieren.</p>
+      <button id="pendingLogout" class="secondary" data-i18n="logout">Abmelden</button>
     </div>
-    <div id="modalBody"></div>
-  </div>
-</div>
+  </section>
 
-<!-- Error overlay -->
-<div id="errBox" class="errBox">
-  <div class="card" style="border-color:#5a1a1a;">
-    <b>Ошибка JavaScript</b>
-    <div class="muted">Скопируй текст ниже и пришли мне.</div>
-    <pre id="errText" class="mono"></pre>
-  </div>
-</div>
+  <div id="app" class="hidden">
+    <header class="app-bar">
+      <button id="menuButton" class="icon-button" aria-label="Menü">☰</button>
+      <div class="app-title">
+        <strong id="pageTitle">Kommissionierung</strong>
+        <span id="identity"></span>
+      </div>
+      <button id="logoutButton" class="icon-button" aria-label="Abmelden">⇥</button>
+    </header>
 
-<script type="module" src="./app.js"></script>
+    <div id="drawerShade" class="drawer-shade hidden"></div>
+    <aside id="drawer" class="drawer" aria-hidden="true">
+      <div class="drawer-brand"><img src="./logo.png" alt="TireScan"><div><b>TireScan</b><span id="drawerUser"></span></div></div>
+      <button data-page="containers" class="nav-item active">▦ <span data-i18n="picking">Kommissionierung</span></button>
+      <button data-page="myWork" class="nav-item">✓ <span data-i18n="myContainers">Meine Container</span></button>
+      <button id="adminNav" data-page="admin" class="nav-item hidden">⚙ <span data-i18n="administration">Administration</span></button>
+      <div class="drawer-footer">
+        <label for="language" data-i18n="language">Sprache</label>
+        <select id="language"><option value="de">Deutsch</option><option value="ru">Русский</option><option value="lv">Latviešu</option></select>
+      </div>
+    </aside>
+
+    <main>
+      <section id="containersPage" class="page">
+        <div class="hero">
+          <img src="./logo.png" alt="TireScan">
+          <div><h1 data-i18n="picking">Kommissionierung</h1><p data-i18n="containerPrompt">Containernummer eingeben oder scannen</p></div>
+        </div>
+        <div class="search-card">
+          <label for="containerNumber" data-i18n="containerNumber">Containernummer</label>
+          <div class="search-row">
+            <input id="containerNumber" inputmode="numeric" autocomplete="off" maxlength="32" placeholder="z. B. 15840">
+            <button id="findContainer" class="primary compact" aria-label="Suchen">⌕</button>
+          </div>
+          <p id="containerMessage" class="message" role="status"></p>
+        </div>
+        <div id="containerResult"></div>
+      </section>
+
+      <section id="myWorkPage" class="page hidden">
+        <div class="section-heading"><div><h1 data-i18n="myContainers">Meine Container</h1><p class="muted" data-i18n="continueWork">Aktive und zuletzt bearbeitete Aufträge</p></div><button id="refreshMine" class="secondary compact">↻</button></div>
+        <div id="myContainers" class="stack"></div>
+      </section>
+
+      <section id="workPage" class="page hidden">
+        <div class="work-summary">
+          <button id="backToMine" class="icon-button dark" aria-label="Zurück">←</button>
+          <div><span data-i18n="container">Container</span><h1 id="workContainerNumber">—</h1></div>
+          <div class="progress-block"><span id="workProgressLabel">0 / 0</span><div class="progress"><span id="workProgress"></span></div></div>
+        </div>
+        <div id="assignmentBanner" class="assignment"></div>
+        <div id="itemsList" class="stack"></div>
+      </section>
+
+      <section id="adminPage" class="page hidden">
+        <h1 data-i18n="administration">Administration</h1>
+        <div class="admin-grid">
+          <article class="panel">
+            <h2 data-i18n="userAccess">Benutzerzugang</h2>
+            <p class="muted" data-i18n="userAccessHint">Konten aktivieren und Anzeigenamen vergeben.</p>
+            <button id="loadUsers" class="secondary" data-i18n="reload">Neu laden</button>
+            <div id="usersList" class="stack"></div>
+          </article>
+          <article class="panel">
+            <h2 data-i18n="importContainer">Container importieren</h2>
+            <p class="muted" data-i18n="importHint">JSON mit Container und Positionen einfügen. Bestehende Container werden nicht überschrieben.</p>
+            <textarea id="containerJson" rows="12" spellcheck="false"></textarea>
+            <button id="importContainer" class="primary" data-i18n="import">Importieren</button>
+            <p id="adminMessage" class="message" role="status"></p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="scanModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="scanTitle">
+    <div class="modal-card">
+      <div class="modal-head"><div><span class="eyebrow" data-i18n="verifyPosition">Position prüfen</span><h2 id="scanTitle">—</h2></div><button id="closeScanner" class="icon-button dark" aria-label="Schließen">×</button></div>
+      <div id="scanExpected" class="expected"></div>
+      <video id="camera" playsinline muted></video>
+      <div class="scanner-actions"><button id="startCamera" class="primary" data-i18n="startCamera">Kamera starten</button><button id="stopCamera" class="secondary" data-i18n="stopCamera">Kamera stoppen</button></div>
+      <form id="pickForm" novalidate>
+        <label for="scannedEan">EAN</label>
+        <input id="scannedEan" inputmode="numeric" autocomplete="off" maxlength="32" required>
+        <div id="eanFeedback" class="scan-feedback neutral" role="status" data-i18n="scanEan">EAN scannen</div>
+        <label for="pickedQuantity" data-i18n="quantity">Menge</label>
+        <input id="pickedQuantity" type="number" inputmode="numeric" min="1" max="70" required>
+        <button id="confirmPick" class="primary" type="submit" disabled data-i18n="confirmPick">Entnahme bestätigen</button>
+      </form>
+      <p id="scanMessage" class="message" role="alert"></p>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>

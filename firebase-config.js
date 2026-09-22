@@ -6,3 +6,8 @@ export const firebaseConfig = {
   messagingSenderId: "66109894982",
   appId: "1:66109894982:web:bb7241c0c22bb6b8857547"
 };
+
+// Set this to the reCAPTCHA Enterprise site key registered in Firebase App Check.
+// The Firebase web API key above is intentionally public and is not an admin secret.
+export const appCheckSiteKey = "";
+export const functionsRegion = "europe-west1";
