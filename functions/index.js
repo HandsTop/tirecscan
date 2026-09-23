@@ -1,9 +1,10 @@
-const functions = require("firebase-functions");
-const admin = require("firebase-admin");
+const functions = require("firebase-functions/v1");
+const { initializeApp } = require("firebase-admin/app");
+const { getAuth } = require("firebase-admin/auth");
+const { FieldValue, getFirestore } = require("firebase-admin/firestore");
 
-admin.initializeApp();
-const db = admin.firestore();
-const FieldValue = admin.firestore.FieldValue;
+initializeApp();
+const db = getFirestore();
 
 const REGION = "europe-west1";
 const callable = functions.region(REGION).https;
@@ -90,13 +91,32 @@ exports.confirmPick = callable.onCall(async (data, context) => {
     if (pickedAfter > requiredQty) fail("out-of-range", `Maximal noch ${requiredQty - pickedBefore} Reifen.`);
     const containerTotal = integer(container.totalQty, 1, 70, "Containermenge"); const containerPicked = integer(container.pickedQty || 0, 0, containerTotal, "Container-Istmenge"); const newContainerPicked = containerPicked + quantity;
     if (newContainerPicked > containerTotal) fail("out-of-range", "Containermenge würde überschritten.");
-    const itemCompleted = pickedAfter === requiredQty; const containerCompleted = newContainerPicked === containerTotal;
+    const itemCompleted = pickedAfter === requiredQty; const allItemsPicked = newContainerPicked === containerTotal;
     transaction.update(itemRef, { pickedQty: pickedAfter, status: itemCompleted ? "completed" : "active", pickedBy: profile.uid, pickedByName: profile.displayName || profile.email || profile.uid, updatedAt: FieldValue.serverTimestamp(), ...(itemCompleted ? { completedAt: FieldValue.serverTimestamp() } : {}) });
-    transaction.update(containerRef, { pickedQty: newContainerPicked, status: containerCompleted ? "completed" : "active", updatedAt: FieldValue.serverTimestamp(), ...(containerCompleted ? { completedAt: FieldValue.serverTimestamp() } : {}) });
+    transaction.update(containerRef, { pickedQty: newContainerPicked, status: "active", updatedAt: FieldValue.serverTimestamp() });
     await writeAudit(transaction, "pick.confirm", profile, { containerId, itemId, ean: scannedEan, quantity, pickedAfter, requiredQty });
-    response = { ok: true, itemCompleted, containerCompleted, pickedQty: pickedAfter };
+    response = { ok: true, itemCompleted, allItemsPicked, pickedQty: pickedAfter };
   });
   return response;
+});
+
+exports.finalizeContainer = callable.onCall(async (data, context) => {
+  const profile = await activeProfile(context);
+  const containerId = safeId(data?.containerId, "Container");
+  const ref = db.doc(`containers/${containerId}`);
+  await db.runTransaction(async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists) fail("not-found", "Container nicht gefunden.");
+    const container = snap.data();
+    if (container.assignedTo !== profile.uid && !isAdmin(context)) fail("permission-denied", "Container ist einem anderen Mitarbeiter zugewiesen.");
+    if (container.status === "completed") return;
+    const totalQty = integer(container.totalQty, 1, 70, "Containermenge");
+    const pickedQty = integer(container.pickedQty || 0, 0, totalQty, "Container-Istmenge");
+    if (pickedQty !== totalQty) fail("failed-precondition", "Nicht alle Positionen sind vollständig kommissioniert.");
+    transaction.update(ref, { status: "completed", completedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+    await writeAudit(transaction, "container.finalize", profile, { containerId, pickedQty, totalQty });
+  });
+  return { ok: true };
 });
 
 exports.importContainer = callable.onCall(async (data, context) => {
@@ -123,7 +143,7 @@ exports.setUserAccess = callable.onCall(async (data, context) => {
   const active=data?.active===true; const role=data?.role==="admin"?"admin":"worker"; const displayName=text(data?.displayName,80); if(active&&!displayName)fail("invalid-argument","Name ist erforderlich.");
   const targetRef=db.doc(`users/${uid}`); const target=await targetRef.get(); if(!target.exists)fail("not-found","Benutzer nicht gefunden.");
   await targetRef.update({active,role,displayName,updatedAt:FieldValue.serverTimestamp(),updatedBy:profile.uid});
-  const authUser=await admin.auth().getUser(uid); await admin.auth().setCustomUserClaims(uid,{...(authUser.customClaims||{}),admin:role==="admin"&&active});
+  const authUser=await getAuth().getUser(uid); await getAuth().setCustomUserClaims(uid,{...(authUser.customClaims||{}),admin:role==="admin"&&active});
   await db.collection("auditLogs").add({action:"user.access",actorUid:profile.uid,actorName:profile.displayName||profile.email||profile.uid,details:{targetUid:uid,active,role},createdAt:FieldValue.serverTimestamp()});
   return {ok:true};
 });
