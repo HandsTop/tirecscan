@@ -5,11 +5,14 @@ Mobile-first warehouse picking application for tire containers.
 ## Workflow
 
 1. A worker signs in with a personal Firebase account.
-2. The worker enters a container number and claims the open container.
-3. The app shows positions in picking order with article, EAN, quantity, warehouse location, and level.
-4. The worker scans the tire EAN and enters the quantity taken.
-5. The server validates the assignment, EAN, and remaining quantity in a Firestore transaction.
-6. Completed positions turn green; the app moves to the next open warehouse position.
+2. The worker enters or scans a container number, reviews its summary, and explicitly confirms the assignment.
+3. The app shows positions in picking order with article, EAN, planned quantity, warehouse location, level, and picked quantity.
+4. Tapping a position opens the compact warehouse dialog. The worker scans the tire EAN and enters the quantity taken.
+5. A short pick requires a second confirmation. The server validates assignment, EAN, and remaining quantity in a Firestore transaction.
+6. Completed positions turn green; partial positions use a red outline so they cannot be overlooked.
+7. Once every position is complete, the worker explicitly confirms the whole list before the container becomes completed.
+
+The navigation and picking flow intentionally mirror the established warehouse handset workflow while retaining TireScan branding and the secured Firebase backend.
 
 The interface defaults to German and also supports Russian and Latvian. The existing `logo.png` remains the application logo.
 

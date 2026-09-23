@@ -3,10 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#27a844">
+  <meta name="theme-color" content="#36b84a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TireScan">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.cloudfunctions.net; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
   <title>TireScan Kommissionierung</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./logo.png">
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
@@ -20,114 +25,111 @@
         <input id="email" type="email" autocomplete="username" maxlength="254" required>
         <label for="password">Passwort</label>
         <input id="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required>
-        <button class="primary" type="submit" data-i18n="login">Anmelden</button>
+        <button class="primary wide" type="submit" data-i18n="login">Anmelden</button>
       </form>
       <p id="loginMessage" class="message" role="alert"></p>
     </div>
   </section>
-
   <section id="pendingView" class="auth-view hidden">
     <div class="auth-card">
       <img src="./logo.png" alt="TireScan" class="auth-logo small-logo">
       <h1 data-i18n="waiting">Konto wartet auf Freigabe</h1>
       <p class="muted" data-i18n="askAdmin">Ein Administrator muss dieses Konto aktivieren.</p>
-      <button id="pendingLogout" class="secondary" data-i18n="logout">Abmelden</button>
+      <button id="pendingLogout" class="secondary wide" data-i18n="logout">Abmelden</button>
     </div>
   </section>
-
   <div id="app" class="hidden">
     <header class="app-bar">
+      <button id="backButton" class="icon-button hidden" aria-label="Zurück">‹</button>
       <button id="menuButton" class="icon-button" aria-label="Menü">☰</button>
-      <div class="app-title">
-        <strong id="pageTitle">Kommissionierung</strong>
-        <span id="identity"></span>
-      </div>
-      <button id="logoutButton" class="icon-button" aria-label="Abmelden">⇥</button>
+      <strong id="pageTitle">Kommissionierung</strong>
+      <span class="bar-spacer"></span>
+      <button id="messageButton" class="icon-button" aria-label="Nachrichten">✉</button>
+      <button id="moreButton" class="icon-button" aria-label="Mehr">⋮</button>
     </header>
-
     <div id="drawerShade" class="drawer-shade hidden"></div>
     <aside id="drawer" class="drawer" aria-hidden="true">
-      <div class="drawer-brand"><img src="./logo.png" alt="TireScan"><div><b>TireScan</b><span id="drawerUser"></span></div></div>
-      <button data-page="containers" class="nav-item active">▦ <span data-i18n="picking">Kommissionierung</span></button>
-      <button data-page="myWork" class="nav-item">✓ <span data-i18n="myContainers">Meine Container</span></button>
-      <button id="adminNav" data-page="admin" class="nav-item hidden">⚙ <span data-i18n="administration">Administration</span></button>
+      <div class="drawer-brand">
+        <img src="./logo.png" alt="TireScan">
+        <div><b>TireScan</b><span id="drawerUser"></span><small id="identity"></small></div>
+      </div>
+      <button data-page="home" class="nav-item"><span class="nav-icon">⌂</span><span>Home</span></button>
+      <button data-page="article" class="nav-item"><span class="nav-icon">⌕</span><span>Artikelsuche</span></button>
+      <button data-page="storage" class="nav-item"><span class="nav-icon">☷</span><span>Einlagerungslisten</span></button>
+      <button data-page="containers" class="nav-item active"><span class="nav-icon">▦</span><span data-i18n="picking">Kommissionierung</span></button>
+      <button data-page="myWork" class="nav-item"><span class="nav-icon">✓</span><span data-i18n="myContainers">Meine Container</span></button>
+      <button data-page="settings" class="nav-item"><span class="nav-icon">⚙</span><span>Einstellungen</span></button>
+      <button id="adminNav" data-page="admin" class="nav-item hidden"><span class="nav-icon">◆</span><span data-i18n="administration">Administration</span></button>
       <div class="drawer-footer">
         <label for="language" data-i18n="language">Sprache</label>
         <select id="language"><option value="de">Deutsch</option><option value="ru">Русский</option><option value="lv">Latviešu</option></select>
+        <button id="logoutButton" class="nav-item logout"><span class="nav-icon">⇥</span><span data-i18n="logout">Abmelden</span></button>
       </div>
     </aside>
-
     <main>
-      <section id="containersPage" class="page">
-        <div class="hero">
-          <img src="./logo.png" alt="TireScan">
-          <div><h1 data-i18n="picking">Kommissionierung</h1><p data-i18n="containerPrompt">Containernummer eingeben oder scannen</p></div>
-        </div>
-        <div class="search-card">
+      <section id="homePage" class="page hidden placeholder-page"><img src="./logo.png" alt="TireScan"><h1>TireScan mobile App</h1><p data-i18n="demoModule">Dieses Modul ist für die nächste Ausbaustufe vorbereitet.</p></section>
+      <section id="articlePage" class="page hidden placeholder-page"><h1>Artikelsuche</h1><p data-i18n="demoModule">Dieses Modul ist für die nächste Ausbaustufe vorbereitet.</p></section>
+      <section id="storagePage" class="page hidden placeholder-page"><h1>Einlagerungslisten</h1><p data-i18n="demoModule">Dieses Modul ist für die nächste Ausbaustufe vorbereitet.</p></section>
+      <section id="settingsPage" class="page hidden placeholder-page"><h1>Einstellungen</h1><p data-i18n="demoModule">Dieses Modul ist für die nächste Ausbaustufe vorbereitet.</p></section>
+      <section id="containersPage" class="page picking-page">
+        <div class="container-search">
           <label for="containerNumber" data-i18n="containerNumber">Containernummer</label>
-          <div class="search-row">
-            <input id="containerNumber" inputmode="numeric" autocomplete="off" maxlength="32" placeholder="z. B. 15840">
-            <button id="findContainer" class="primary compact" aria-label="Suchen">⌕</button>
+          <div class="search-line">
+            <input id="containerNumber" inputmode="numeric" autocomplete="off" maxlength="32" placeholder="023654">
+            <button id="scanContainer" class="barcode-button" aria-label="Barcode scannen"><span></span></button>
+            <button id="findContainer" class="search-button" aria-label="Suchen">⌕</button>
           </div>
           <p id="containerMessage" class="message" role="status"></p>
         </div>
         <div id="containerResult"></div>
+        <button id="confirmContainer" class="floating-check hidden" aria-label="Container bestätigen">✓</button>
       </section>
-
       <section id="myWorkPage" class="page hidden">
-        <div class="section-heading"><div><h1 data-i18n="myContainers">Meine Container</h1><p class="muted" data-i18n="continueWork">Aktive und zuletzt bearbeitete Aufträge</p></div><button id="refreshMine" class="secondary compact">↻</button></div>
+        <div class="section-heading"><h1 data-i18n="myContainers">Meine Container</h1><button id="refreshMine" class="flat-button">↻</button></div>
         <div id="myContainers" class="stack"></div>
       </section>
-
-      <section id="workPage" class="page hidden">
-        <div class="work-summary">
-          <button id="backToMine" class="icon-button dark" aria-label="Zurück">←</button>
-          <div><span data-i18n="container">Container</span><h1 id="workContainerNumber">—</h1></div>
-          <div class="progress-block"><span id="workProgressLabel">0 / 0</span><div class="progress"><span id="workProgress"></span></div></div>
-        </div>
-        <div id="assignmentBanner" class="assignment"></div>
-        <div id="itemsList" class="stack"></div>
+      <section id="workPage" class="page hidden work-page">
+        <div id="workOverview" class="work-overview"></div>
+        <div id="itemsList" class="item-list"></div>
+        <button id="finishContainer" class="floating-check hidden" aria-label="Liste bestätigen">✓</button>
       </section>
-
-      <section id="adminPage" class="page hidden">
-        <h1 data-i18n="administration">Administration</h1>
+      <section id="adminPage" class="page hidden admin-page">
         <div class="admin-grid">
           <article class="panel">
-            <h2 data-i18n="userAccess">Benutzerzugang</h2>
-            <p class="muted" data-i18n="userAccessHint">Konten aktivieren und Anzeigenamen vergeben.</p>
-            <button id="loadUsers" class="secondary" data-i18n="reload">Neu laden</button>
-            <div id="usersList" class="stack"></div>
+            <h2 data-i18n="userAccess">Benutzerzugang</h2><p class="muted" data-i18n="userAccessHint">Konten aktivieren und Anzeigenamen vergeben.</p>
+            <button id="loadUsers" class="secondary wide" data-i18n="reload">Neu laden</button><div id="usersList" class="stack"></div>
           </article>
           <article class="panel">
-            <h2 data-i18n="importContainer">Container importieren</h2>
-            <p class="muted" data-i18n="importHint">JSON mit Container und Positionen einfügen. Bestehende Container werden nicht überschrieben.</p>
+            <h2 data-i18n="importContainer">Container importieren</h2><p class="muted" data-i18n="importHint">JSON mit Container und Positionen einfügen. Bestehende Container werden nicht überschrieben.</p>
             <textarea id="containerJson" rows="12" spellcheck="false"></textarea>
-            <button id="importContainer" class="primary" data-i18n="import">Importieren</button>
-            <p id="adminMessage" class="message" role="status"></p>
+            <button id="importContainer" class="primary wide" data-i18n="import">Importieren</button><p id="adminMessage" class="message" role="status"></p>
           </article>
         </div>
       </section>
     </main>
   </div>
-
   <div id="scanModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="scanTitle">
-    <div class="modal-card">
-      <div class="modal-head"><div><span class="eyebrow" data-i18n="verifyPosition">Position prüfen</span><h2 id="scanTitle">—</h2></div><button id="closeScanner" class="icon-button dark" aria-label="Schließen">×</button></div>
-      <div id="scanExpected" class="expected"></div>
+    <div class="modal-card pick-dialog">
+      <div class="dialog-title"><strong id="scanTitle">—</strong><b id="scanRequired">0</b></div>
+      <div id="scanDescription" class="dialog-description"></div>
       <video id="camera" playsinline muted></video>
-      <div class="scanner-actions"><button id="startCamera" class="primary" data-i18n="startCamera">Kamera starten</button><button id="stopCamera" class="secondary" data-i18n="stopCamera">Kamera stoppen</button></div>
       <form id="pickForm" novalidate>
-        <label for="scannedEan">EAN</label>
-        <input id="scannedEan" inputmode="numeric" autocomplete="off" maxlength="32" required>
-        <div id="eanFeedback" class="scan-feedback neutral" role="status" data-i18n="scanEan">EAN scannen</div>
-        <label for="pickedQuantity" data-i18n="quantity">Menge</label>
-        <input id="pickedQuantity" type="number" inputmode="numeric" min="1" max="70" required>
-        <button id="confirmPick" class="primary" type="submit" disabled data-i18n="confirmPick">Entnahme bestätigen</button>
+        <div class="dialog-field ean-field">
+          <label for="scannedEan">EAN</label><span class="mini-barcode"></span>
+          <input id="scannedEan" inputmode="numeric" autocomplete="off" maxlength="32" required>
+          <span id="eanState" class="ean-state">○</span>
+          <button id="startCamera" type="button" class="dialog-button" data-i18n="scan">SCAN</button>
+        </div>
+        <div id="eanFeedback" class="scan-feedback neutral" role="status"></div>
+        <div class="dialog-field quantity-field"><label for="pickedQuantity" data-i18n="commissioned">Kommissioniert</label><input id="pickedQuantity" type="number" inputmode="numeric" min="1" max="70" required></div>
+        <p id="scanMessage" class="message" role="alert"></p>
+        <div class="dialog-actions"><button id="closeScanner" class="text-button" type="button" data-i18n="cancel">ABBRECHEN</button><button id="confirmPick" class="text-button accent" type="submit" disabled data-i18n="done">ERLEDIGT</button></div>
       </form>
-      <p id="scanMessage" class="message" role="alert"></p>
     </div>
   </div>
-
+  <div id="confirmModal" class="modal centered hidden" role="dialog" aria-modal="true" aria-labelledby="confirmText">
+    <div class="modal-card confirm-dialog"><p id="confirmText"></p><div class="dialog-actions"><button id="confirmNo" class="text-button">NEIN</button><button id="confirmYes" class="text-button accent">JA</button></div></div>
+  </div>
   <div id="toast" class="toast hidden" role="status"></div>
   <script type="module" src="./app.js"></script>
 </body>
