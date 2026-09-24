@@ -60,14 +60,14 @@ Each container is limited to 70 tires. Large orders are split into multiple cont
     "arrivedPending": 2,
     "turnover": 72,
     "locations": [
-      { "code": "WX14", "level": 1, "quantity": 10 },
-      { "code": "K59", "level": 3, "quantity": 8 }
+      { "site": "Friesoythe", "code": "WX14", "level": 1, "quantity": 10, "available": 8 },
+      { "site": "Thüle", "code": "K59", "level": 3, "quantity": 8, "available": 6 }
     ]
   }
 ]
 ```
 
-Physical stock is calculated from all location quantities. Changes to storage locations are written to the article history automatically.
+Physical and available stock are calculated from all location quantities. P/V values turn red and the `LAGERPLÄTZE` button turns green only when stock exists at two or more different sites (for example Friesoythe and Thüle), not merely at two storage positions inside one site. Stock and location changes are restricted to administrators and written to the article history automatically.
 
 ## Deployment
 
