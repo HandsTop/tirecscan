@@ -277,12 +277,18 @@ function renderArticleResults(){
 function renderTireCard(article){
   const card=node("article","tire-card");
   const head=node("div","tire-card-head"); head.append(node("strong",null,article.brand||"—"),node("b",null,article.articleNo||"—"));
-  const sub=node("div","tire-card-sub"); sub.append(node("span",null,`${article.size||""} ${article.description||""}`.trim()),node("span","ean-ok",`EAN: ${article.ean||"—"}`));
-  const turnover=node("div","turnover"); const bar=node("span");bar.style.width=`${Math.max(4,Math.min(100,Number(article.turnover||0)))}%`;turnover.append(bar);
-  const stocks=node("div","tire-stock-grid");[["P",article.physical],["V",article.available],["T",article.arrivedPending],["B",article.ordered]].forEach(([key,value])=>{const item=node("div","stock-code");item.append(node("b",null,key),node("span",Number(value)<1?"low":null,String(value??0)));stocks.append(item);});
-  const first=(article.locations||[])[0]||{}; const location=node("div","tire-location-line");location.append(node("span",null,`Lager ${first.code||"—"}   Ebene ${first.level||"—"}`));
+  const sub=node("div","tire-card-sub"); sub.append(node("span",null,`${article.size||""} ${article.description||""}`.trim()));
+  const turnoverValue=Math.max(0,Math.min(100,Number(article.turnover||0)));const turnover=node("div","turnover"); const bar=node("span");bar.style.width=`${Math.max(4,turnoverValue)}%`;const turnoverText=node("small",null,`${(turnoverValue/100).toLocaleString(state.lang,{minimumFractionDigits:1,maximumFractionDigits:1})}  (12 Monate, ø-Best. ${article.physical??0})`);turnover.append(bar,turnoverText);
+  const locations=article.locations||[];const warehouseQuery=normalizeArticleSearch($("articleQuery").value);const first=($("warehouseMode").checked?locations.find(place=>normalizeArticleSearch(place.code).includes(warehouseQuery)):null)||locations[0]||{};
+  const inventory=node("div","inventory-grid");
+  const stockColumn=node("div","inventory-column");[["P",article.physical],["V",article.available]].forEach(([key,value])=>{const item=node("div","stock-code");item.append(node("b",null,key),node("span",Number(value)<1?"low":null,String(value??0)));stockColumn.append(item);});
+  const pendingColumn=node("div","inventory-column");[["T",article.arrivedPending],["B",article.ordered]].forEach(([key,value])=>{const item=node("div","stock-code");item.append(node("b",null,key),node("span",Number(value)<1?"empty":null,String(value??0)));pendingColumn.append(item);});
+  const detailColumn=node("div","inventory-column inventory-details");detailColumn.append(node("b",null,"DOT"),node("span",null,`Lager  ${first.code||"—"}`));
+  const level=node("div","inventory-level");level.append(node("b",null,"Ebene"),node("span",null,String(first.level||"—")));
+  const print=node("button","print-button");print.type="button";print.setAttribute("aria-label","Artikel drucken");print.title="Drucken";print.addEventListener("click",()=>window.print());
+  inventory.append(stockColumn,pendingColumn,detailColumn,level,print);
   const actions=node("div","tire-actions"); [["LAGERPLÄTZE","places"],["HISTORIE","history"],["ZUGÄNGE","arrivals"]].forEach(([label,view])=>{const button=node("button",null,label);button.type="button";button.addEventListener("click",()=>openArticleDetail(article,view));actions.append(button);});
-  card.append(head,sub,turnover,stocks,location,actions);return card;
+  card.append(head,sub,turnover,inventory,actions);return card;
 }
 function articleHeader(article){const header=node("div","article-detail-header");const top=node("div");top.append(node("strong",null,article.brand||"—"),node("b",null,article.articleNo||"—"));header.append(top,node("p",null,`${article.size||""} ${article.description||""}`.trim()));return header;}
 async function getArticleDetails(article){
