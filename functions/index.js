@@ -29,11 +29,11 @@ const normalizeSearch = (value) => text(value, 80).normalize("NFKD").toUpperCase
 const tirePublic = (id, data) => ({
   ean: String(data.ean || id), articleNo: text(data.articleNo, 40), brand: text(data.brand, 80), size: text(data.size, 80), description: text(data.description, 160),
   physical: Number(data.physical || 0), available: Number(data.available || 0), ordered: Number(data.ordered || 0), arrivedPending: Number(data.arrivedPending || 0), turnover: Number(data.turnover || 0),
-  locations: Array.isArray(data.locations) ? data.locations.slice(0, 20).map(place => ({ code:text(place.code, 20), level:Number(place.level || 1), quantity:Number(place.quantity || 0) })) : []
+  locations: Array.isArray(data.locations) ? data.locations.slice(0, 20).map(place => ({ site:text(place.site || "Friesoythe", 40), code:text(place.code, 20), level:Number(place.level || 1), quantity:Number(place.quantity || 0), available:Number(place.available ?? place.quantity ?? 0) })) : []
 });
 function tireMatches(tire, raw, warehouseMode) {
   const search = normalizeSearch(raw); if (!search) return true;
-  if (warehouseMode) return tire.locations.some(place => normalizeSearch(place.code).includes(search));
+  if (warehouseMode) return tire.locations.some(place => normalizeSearch(place.code).includes(search) || normalizeSearch(place.site).includes(search));
   const fields = [tire.ean, tire.articleNo, tire.brand, tire.description].map(normalizeSearch);
   if (fields.some(value => value.includes(search))) return true;
   const size = String(tire.size || "").toUpperCase(); const match = size.match(/(\d{3})\D*(\d{2})\D*R?\s*(\d{2})/); const dimension = match ? `${match[1]}${match[2]}${match[3]}` : "";
@@ -153,18 +153,19 @@ exports.getTireDetails = callable.onCall(async (data, context) => {
 });
 
 exports.saveTireLocation = callable.onCall(async (data, context) => {
-  const profile = await activeProfile(context); const tireEan = ean(data?.ean); const code = text(data?.code, 20).toUpperCase(); const originalCode = text(data?.originalCode, 20).toUpperCase();
+  const profile = await activeProfile(context); if (!isAdmin(context)) fail("permission-denied", "Nur Administratoren dürfen Bestände ändern."); const tireEan = ean(data?.ean); const site = text(data?.site, 40); const code = text(data?.code, 20).toUpperCase(); const originalCode = text(data?.originalCode, 20).toUpperCase();
+  if (!site) fail("invalid-argument", "Standort ist erforderlich.");
   if (!/^[A-Z0-9_-]{1,20}$/.test(code)) fail("invalid-argument", "Lagerplatz ist ungültig.");
-  const level = integer(data?.level, 1, 9, "Ebene"); const quantity = integer(data?.quantity, 0, 9999, "Bestand"); const ref = db.doc(`tires/${tireEan}`); let result;
+  const level = integer(data?.level, 1, 9, "Ebene"); const quantity = integer(data?.quantity, 0, 999999, "Bestand"); const availableAtLocation = integer(data?.available, 0, quantity, "Verfügbarer Bestand"); const ref = db.doc(`tires/${tireEan}`); let result;
   await db.runTransaction(async transaction => {
-    const snap = await transaction.get(ref); if (!snap.exists) fail("not-found", "Artikel nicht gefunden."); const tire = snap.data(); const locations = Array.isArray(tire.locations) ? tire.locations.slice(0, 20).map(place => ({code:text(place.code,20).toUpperCase(),level:Number(place.level||1),quantity:Number(place.quantity||0)})) : [];
+    const snap = await transaction.get(ref); if (!snap.exists) fail("not-found", "Artikel nicht gefunden."); const tire = snap.data(); const locations = Array.isArray(tire.locations) ? tire.locations.slice(0, 20).map(place => ({site:text(place.site||"Friesoythe",40),code:text(place.code,20).toUpperCase(),level:Number(place.level||1),quantity:Number(place.quantity||0),available:Number(place.available??place.quantity??0)})) : [];
     const existingIndex = locations.findIndex(place => place.code === (originalCode || code)); const duplicateIndex = locations.findIndex(place => place.code === code);
     if (duplicateIndex >= 0 && duplicateIndex !== existingIndex) fail("already-exists", "Dieser Lagerplatz ist bereits vorhanden.");
-    const location = { code, level, quantity }; if (existingIndex >= 0) locations[existingIndex] = location; else { if (locations.length >= 20) fail("resource-exhausted", "Maximal 20 Lagerplätze pro Artikel."); locations.push(location); }
-    const physical = locations.reduce((sum, place) => sum + place.quantity, 0); const previousPhysical = Number(tire.physical || 0); const reserved = Math.max(0, previousPhysical - Number(tire.available ?? previousPhysical)); const available = Math.max(0, physical - reserved);
+    const location = { site, code, level, quantity, available:availableAtLocation }; if (existingIndex >= 0) locations[existingIndex] = location; else { if (locations.length >= 20) fail("resource-exhausted", "Maximal 20 Lagerplätze pro Artikel."); locations.push(location); }
+    const physical = locations.reduce((sum, place) => sum + place.quantity, 0); const available = locations.reduce((sum, place) => sum + place.available, 0);
     transaction.update(ref, { locations, physical, available, updatedAt:FieldValue.serverTimestamp(), updatedBy:profile.uid });
-    transaction.set(ref.collection("history").doc(), { from:originalCode || "—", to:code, user:profile.displayName || profile.email || profile.uid, actorUid:profile.uid, createdAt:FieldValue.serverTimestamp() });
-    await writeAudit(transaction, originalCode ? "tire.location.update" : "tire.location.add", profile, { ean:tireEan, originalCode, code, level, quantity }); result=tirePublic(tireEan,{...tire,locations,physical,available});
+    transaction.set(ref.collection("history").doc(), { from:originalCode || "—", to:code, site, user:profile.displayName || profile.email || profile.uid, actorUid:profile.uid, createdAt:FieldValue.serverTimestamp() });
+    await writeAudit(transaction, originalCode ? "tire.location.update" : "tire.location.add", profile, { ean:tireEan, originalCode, site, code, level, quantity, available:availableAtLocation }); result=tirePublic(tireEan,{...tire,locations,physical,available});
   });
   return { ok:true, tire:result };
 });
@@ -175,10 +176,10 @@ exports.importTires = callable.onCall(async (data, context) => {
   if (!rows.length || rows.length > 100) fail("invalid-argument", "1 bis 100 Artikel pro Import erforderlich.");
   const batch = db.batch();
   rows.forEach((row) => {
-    const tireEan = ean(row?.ean); const locations = Array.isArray(row?.locations) ? row.locations.slice(0,20).map(place => ({ code:text(place?.code,20).toUpperCase(), level:integer(place?.level ?? 1,1,9,"Ebene"), quantity:integer(place?.quantity ?? 0,0,9999,"Bestand") })) : [];
+    const tireEan = ean(row?.ean); const locations = Array.isArray(row?.locations) ? row.locations.slice(0,20).map(place => { const quantity=integer(place?.quantity ?? 0,0,999999,"Bestand");return { site:text(place?.site || "Friesoythe",40), code:text(place?.code,20).toUpperCase(), level:integer(place?.level ?? 1,1,9,"Ebene"), quantity, available:integer(place?.available ?? quantity,0,quantity,"Verfügbarer Bestand") }; }) : [];
     if (locations.some(place => !/^[A-Z0-9_-]{1,20}$/.test(place.code))) fail("invalid-argument", `Lagerplatz für EAN ${tireEan} ist ungültig.`);
     const physical = locations.length ? locations.reduce((sum,place)=>sum+place.quantity,0) : integer(row?.physical ?? 0,0,999999,"P");
-    const available = integer(row?.available ?? physical,0,physical,"V");
+    const available = locations.length ? locations.reduce((sum,place)=>sum+place.available,0) : integer(row?.available ?? physical,0,physical,"V");
     batch.set(db.doc(`tires/${tireEan}`), { ean:tireEan, articleNo:text(row?.articleNo,40), brand:text(row?.brand,80), size:text(row?.size,80), description:text(row?.description,160), physical, available, ordered:integer(row?.ordered ?? 0,0,999999,"B"), arrivedPending:integer(row?.arrivedPending ?? 0,0,999999,"T"), turnover:integer(row?.turnover ?? 0,0,100,"Umschlag"), locations, updatedAt:FieldValue.serverTimestamp(), updatedBy:context.auth.uid }, { merge:true });
   });
   await batch.commit(); return { ok:true, count:rows.length };

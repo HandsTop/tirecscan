@@ -130,7 +130,7 @@
           </article>
           <article class="panel">
             <h2>Reifenkatalog importieren</h2><p class="muted">JSON-Array mit Artikeln, Beständen und Lagerplätzen einfügen.</p>
-            <textarea id="tireJson" rows="12" spellcheck="false" placeholder='[{"ean":"5420068698523","articleNo":"23-289","brand":"Nexen","size":"225/45 R18 95V","locations":[{"code":"K59","level":3,"quantity":8}]}]'></textarea>
+            <textarea id="tireJson" rows="12" spellcheck="false" placeholder='[{"ean":"5420068698523","articleNo":"23-289","brand":"Nexen","size":"225/45 R18 95V","locations":[{"site":"Friesoythe","code":"K59","level":3,"quantity":8,"available":6}]}]'></textarea>
             <button id="importTires" class="primary wide">Artikel importieren</button><p id="tireImportMessage" class="message" role="status"></p>
           </article>
         </div>
@@ -172,9 +172,11 @@
     <form id="locationForm" class="modal-card location-dialog">
       <h2 id="locationTitle">Lagerplatz</h2>
       <input id="locationOriginal" type="hidden">
+      <label for="locationSite">Standort</label><input id="locationSite" maxlength="40" autocomplete="off" placeholder="Friesoythe" required>
       <label for="locationCode">Lager</label><input id="locationCode" maxlength="20" autocomplete="off" required>
       <label for="locationLevel">Ebene</label><input id="locationLevel" type="number" min="1" max="9" inputmode="numeric" required>
-      <label for="locationQuantity">Bestand</label><input id="locationQuantity" type="number" min="0" max="9999" inputmode="numeric" required>
+      <label for="locationQuantity">Physischer Bestand (P)</label><input id="locationQuantity" type="number" min="0" max="999999" inputmode="numeric" required>
+      <label for="locationAvailable">Verfügbarer Bestand (V)</label><input id="locationAvailable" type="number" min="0" max="999999" inputmode="numeric" required>
       <p id="locationMessage" class="message" role="alert"></p>
       <div class="dialog-actions"><button id="cancelLocation" class="text-button" type="button">ABBRECHEN</button><button class="text-button accent" type="submit">SPEICHERN</button></div>
     </form>
