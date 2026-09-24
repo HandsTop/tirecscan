@@ -16,6 +16,10 @@ const call = {
   claimContainer: httpsCallable(functions, "claimContainer"),
   confirmPick: httpsCallable(functions, "confirmPick"),
   finalizeContainer: httpsCallable(functions, "finalizeContainer"),
+  searchArticles: httpsCallable(functions, "searchArticles"),
+  getTireDetails: httpsCallable(functions, "getTireDetails"),
+  saveTireLocation: httpsCallable(functions, "saveTireLocation"),
+  importTires: httpsCallable(functions, "importTires"),
   importContainer: httpsCallable(functions, "importContainer"),
   setUserAccess: httpsCallable(functions, "setUserAccess")
 };
@@ -57,7 +61,7 @@ const TEXT = {
 };
 
 const demoMode = ["127.0.0.1","localhost"].includes(location.hostname) && new URLSearchParams(location.search).has("demo");
-const state = { lang:localStorage.getItem("tirescan.lang") || "de", user:null, profile:null, isAdmin:false, page:"containers", searchContainer:null, container:null, items:[], selected:null, stream:null, scanTimer:null, confirmAction:null };
+const state = { lang:localStorage.getItem("tirescan.lang") || "de", user:null, profile:null, isAdmin:false, page:"containers", previousPage:"containers", searchContainer:null, container:null, items:[], selected:null, stream:null, scanTimer:null, confirmAction:null, articles:[], selectedArticle:null, articleStream:null, articleScanTimer:null };
 const t = (key) => TEXT[state.lang]?.[key] || TEXT.de[key] || key;
 const cleanId = (value) => String(value || "").trim().replace(/[^A-Za-z0-9_-]/g, "").slice(0,32);
 const cleanEan = (value) => String(value || "").replace(/\D/g, "").slice(0,14);
@@ -66,6 +70,12 @@ const displayError = (error) => String(error?.message || error || t("loadFailed"
 function node(tag,className,text){ const el=document.createElement(tag); if(className)el.className=className; if(text!==undefined)el.textContent=text; return el; }
 function setMessage(element,text,ok=false){ element.textContent=text || ""; element.classList.toggle("ok",ok); }
 function formatDate(value){ const date=value?.toDate?.() || (value ? new Date(value) : null); return date && !Number.isNaN(date.valueOf()) ? date.toLocaleString(state.lang,{dateStyle:"short",timeStyle:"medium"}) : "—"; }
+function dateFromValue(value){
+  if(value?.toDate)return value.toDate();
+  if(Number.isFinite(value?.seconds))return new Date(value.seconds*1000);
+  const date=value?new Date(value):null;
+  return date&&!Number.isNaN(date.valueOf())?date:null;
+}
 function replace(template,values){ return Object.entries(values).reduce((out,[key,value])=>out.replaceAll(`{${key}}`,String(value)),template); }
 function showToast(text){ const el=$("toast"); el.textContent=text; el.classList.remove("hidden"); clearTimeout(showToast.timer); showToast.timer=setTimeout(()=>el.classList.add("hidden"),2600); }
 function openDrawer(open=true){ $("drawer").classList.toggle("open",open); $("drawer").setAttribute("aria-hidden",String(!open)); $("drawerShade").classList.toggle("hidden",!open); }
@@ -78,20 +88,25 @@ function applyLanguage(){
   showPage(state.page,false);
   if(state.searchContainer) renderSearchResult();
   if(state.container) renderWork();
+  if(state.articles.length)renderArticleResults();
+  if(state.selectedArticle&&state.page.startsWith("article")&&state.page!=="article")renderArticleDetail(state.page.replace("article","").toLowerCase());
 }
 
 function showPage(page,load=true){
+  if(state.page!==page)state.previousPage=state.page;
   state.page=page;
   document.querySelectorAll(".page").forEach(el=>el.classList.add("hidden"));
   $((page==="work"?"work":page)+"Page")?.classList.remove("hidden");
   document.querySelectorAll(".nav-item[data-page]").forEach(el=>el.classList.toggle("active",el.dataset.page===page));
-  const titles={home:"Home",article:"Artikelsuche",storage:"Einlagerungslisten",containers:t("picking"),myWork:t("myContainers"),settings:"Einstellungen",admin:t("administration"),work:`Container: ${state.container?.number||state.container?.id||""}`};
+  const titles={home:"Home",article:"Artikelsuche",articlePlaces:"Lagerplätze",articleHistory:"Historie",articleArrivals:"Zugänge",storage:"Einlagerungslisten",containers:t("picking"),myWork:t("myContainers"),settings:"Einstellungen",admin:t("administration"),work:`Container: ${state.container?.number||state.container?.id||""}`};
   $("pageTitle").textContent=titles[page] || "TireScan";
-  $("menuButton").classList.toggle("hidden",page==="work");
-  $("backButton").classList.toggle("hidden",page!=="work");
+  const detailPage=page==="work"||page.startsWith("articleP")||page==="articleHistory"||page==="articleArrivals";
+  $("menuButton").classList.toggle("hidden",detailPage);
+  $("backButton").classList.toggle("hidden",!detailPage);
   openDrawer(false);
   if(load && page==="myWork") loadMyContainers();
   if(load && page==="admin") loadUsers();
+  if(load && page==="article" && !state.articles.length) searchArticles();
 }
 
 async function login(event){
@@ -219,6 +234,109 @@ function renderItem(item){
 }
 function metric(label,value){ const el=node("div","metric"); el.append(node("b",null,`${label}:`),node("span",null,String(value))); return el; }
 
+const DEMO_ARTICLES=[
+  {ean:"5420068698523",articleNo:"23-289",brand:"Nexen",size:"225/45 R18 95V",description:"N'Fera Sport SU2",physical:18,available:14,ordered:8,arrivedPending:2,turnover:72,locations:[{code:"WX14",level:1,quantity:10},{code:"K59",level:3,quantity:8}]},
+  {ean:"4019238065916",articleNo:"132-777",brand:"Continental",size:"225/45 R17 91Y",description:"UltraContact",physical:9,available:7,ordered:4,arrivedPending:0,turnover:58,locations:[{code:"WT15",level:1,quantity:9}]},
+  {ean:"8808956238469",articleNo:"29-1450",brand:"Kumho",size:"205/55 R16 91H",description:"Ecsta HS52",physical:14,available:14,ordered:20,arrivedPending:4,turnover:43,locations:[{code:"9963",level:1,quantity:14}]},
+  {ean:"4038526482914",articleNo:"90-1282",brand:"GOODYEAR",size:"265/60 R18 110T",description:"UltraGrip Performance+",physical:6,available:4,ordered:12,arrivedPending:0,turnover:66,locations:[{code:"8469",level:2,quantity:6}]},
+  {ean:"4717784243535",articleNo:"60-90",brand:"Maxxis",size:"185 R14 104/102N",description:"CR967",physical:22,available:16,ordered:0,arrivedPending:5,turnover:31,locations:[{code:"9521",level:1,quantity:12},{code:"WW18",level:4,quantity:10}]}
+];
+const demoHistory={
+  "5420068698523":[{from:"WX14",to:"K59",user:"ANDREJS",at:"2026-09-23T10:09:00"},{from:"9000",to:"WX14",user:"MARTIN",at:"2026-09-20T11:32:00"}],
+  "8808956238469":[{from:"9482",to:"9963",user:"RAITIS",at:"2026-09-03T16:02:00"}]
+};
+const demoArrivals={
+  "5420068698523":[{supplier:"Nexen Tire Europe 335503",date:"2026-04-14",quantity:40,old:14,new:54},{supplier:"Nexen Tire Europe 333260",date:"2026-03-12",quantity:60,old:0,new:60}],
+  "8808956238469":[{supplier:"Kumho Tire Europe GmbH 335503",date:"2026-04-14",quantity:40,old:14,new:54},{supplier:"Kumho Tire Europe GmbH 312987",date:"2025-05-30",quantity:88,old:77,new:165}]
+};
+function normalizeArticleSearch(value){return String(value||"").normalize("NFKD").toUpperCase().replace(/[^A-Z0-9]/g,"");}
+function articleMatches(article,raw,warehouseMode=false){
+  const queryText=normalizeArticleSearch(raw); if(!queryText)return true;
+  if(warehouseMode)return (article.locations||[]).some(place=>normalizeArticleSearch(place.code).includes(queryText));
+  const eanValue=normalizeArticleSearch(article.ean),articleValue=normalizeArticleSearch(article.articleNo),brand=normalizeArticleSearch(article.brand),description=normalizeArticleSearch(article.description);
+  if(eanValue.includes(queryText)||articleValue.includes(queryText)||brand.includes(queryText)||description.includes(queryText))return true;
+  const size=String(article.size||"").toUpperCase(); const match=size.match(/(\d{3})\D*(\d{2})\D*R?\s*(\d{2})/); const dimension=match?`${match[1]}${match[2]}${match[3]}`:"";
+  const speed=(size.match(/\d{2,3}([A-Z])(?:\s|$)/)||[])[1]||"";
+  const withoutBrand=brand&&queryText.includes(brand)?queryText.replace(brand,""):queryText;
+  return !!dimension&&withoutBrand.includes(dimension)&&(!/[HTVWY]$/.test(withoutBrand)||withoutBrand.endsWith(speed));
+}
+async function searchArticles(){
+  const raw=$("articleQuery").value.trim(); const warehouseMode=$("warehouseMode").checked; setMessage($("articleMessage"),""); $("articleResults").replaceChildren();
+  try{
+    let articles;
+    if(demoMode)articles=DEMO_ARTICLES.filter(article=>articleMatches(article,raw,warehouseMode));
+    else { const response=await call.searchArticles({query:raw,warehouseMode}); articles=response.data?.articles||[]; }
+    state.articles=articles; renderArticleResults();
+  }catch(error){console.error(error);setMessage($("articleMessage"),displayError(error));}
+}
+function renderArticleResults(){
+  const target=$("articleResults"); target.replaceChildren();
+  if(!state.articles.length){target.append(node("p","muted","Keine Artikel gefunden."));return;}
+  state.articles.forEach(article=>target.append(renderTireCard(article)));
+}
+function renderTireCard(article){
+  const card=node("article","tire-card");
+  const head=node("div","tire-card-head"); head.append(node("strong",null,article.brand||"—"),node("b",null,article.articleNo||"—"));
+  const sub=node("div","tire-card-sub"); sub.append(node("span",null,`${article.size||""} ${article.description||""}`.trim()));
+  const turnoverValue=Math.max(0,Math.min(100,Number(article.turnover||0)));const turnover=node("div","turnover"); const bar=node("span");bar.style.width=`${Math.max(4,turnoverValue)}%`;const turnoverText=node("small",null,`${(turnoverValue/100).toLocaleString(state.lang,{minimumFractionDigits:1,maximumFractionDigits:1})}  (12 Monate, ø-Best. ${article.physical??0})`);turnover.append(bar,turnoverText);
+  const locations=article.locations||[];const warehouseQuery=normalizeArticleSearch($("articleQuery").value);const first=($("warehouseMode").checked?locations.find(place=>normalizeArticleSearch(place.code).includes(warehouseQuery)):null)||locations[0]||{};
+  const inventory=node("div","inventory-grid");
+  const stockColumn=node("div","inventory-column");[["P",article.physical],["V",article.available]].forEach(([key,value])=>{const item=node("div","stock-code");item.append(node("b",null,key),node("span",Number(value)<1?"low":null,String(value??0)));stockColumn.append(item);});
+  const pendingColumn=node("div","inventory-column");[["T",article.arrivedPending],["B",article.ordered]].forEach(([key,value])=>{const item=node("div","stock-code");item.append(node("b",null,key),node("span",Number(value)<1?"empty":null,String(value??0)));pendingColumn.append(item);});
+  const detailColumn=node("div","inventory-column inventory-details");detailColumn.append(node("b",null,"DOT"),node("span",null,`Lager  ${first.code||"—"}`));
+  const level=node("div","inventory-level");level.append(node("b",null,"Ebene"),node("span",null,String(first.level||"—")));
+  const print=node("button","print-button");print.type="button";print.setAttribute("aria-label","Artikel drucken");print.title="Drucken";print.addEventListener("click",()=>window.print());
+  inventory.append(stockColumn,pendingColumn,detailColumn,level,print);
+  const actions=node("div","tire-actions"); [["LAGERPLÄTZE","places"],["HISTORIE","history"],["ZUGÄNGE","arrivals"]].forEach(([label,view])=>{const button=node("button",null,label);button.type="button";button.addEventListener("click",()=>openArticleDetail(article,view));actions.append(button);});
+  card.append(head,sub,turnover,inventory,actions);return card;
+}
+function articleHeader(article){const header=node("div","article-detail-header");const top=node("div");top.append(node("strong",null,article.brand||"—"),node("b",null,article.articleNo||"—"));header.append(top,node("p",null,`${article.size||""} ${article.description||""}`.trim()));return header;}
+async function getArticleDetails(article){
+  if(demoMode)return {...article,history:demoHistory[article.ean]||[],arrivals:demoArrivals[article.ean]||[]};
+  const response=await call.getTireDetails({ean:article.ean});return response.data;
+}
+async function openArticleDetail(article,view){
+  try{state.selectedArticle=await getArticleDetails(article);renderArticleDetail(view);showPage(`article${view[0].toUpperCase()}${view.slice(1)}`,false);}
+  catch(error){console.error(error);showToast(displayError(error));}
+}
+function renderArticleDetail(view){
+  const article=state.selectedArticle;if(!article)return;
+  if(view==="places"){
+    $("placesArticleHeader").replaceChildren(articleHeader(article));
+    const summary=$("placesSummary");summary.replaceChildren();const physical=node("div");physical.append(node("span",null,"Physischer Lagerbestand:"),node("b",null,String(article.physical??0)));const available=node("div");available.append(node("span",null,"Verfügbarer Bestand:"),node("b",null,String(article.available??0)));summary.append(physical,available);renderLocations();
+  }else if(view==="history"){
+    $("historyArticleHeader").replaceChildren(articleHeader(article));const target=$("articleHistory");target.replaceChildren();
+    const header=node("div","history-row header");["Lager","Benutzer","Datum","Uhrzeit"].forEach(value=>header.append(node("span",null,value)));target.append(header);
+    const entries=article.history||[];if(!entries.length)target.append(node("p","muted","Noch keine Bewegungen."));
+    entries.forEach(entry=>{const date=dateFromValue(entry.at);const row=node("div","history-row");[`${entry.from||"—"} → ${entry.to||"—"}`,entry.user||"—",date?date.toLocaleDateString(state.lang):"—",date?date.toLocaleTimeString(state.lang,{hour:"2-digit",minute:"2-digit"}):"—"].forEach(value=>row.append(node("span",null,value)));target.append(row);});
+  }else{
+    $("arrivalsArticleHeader").replaceChildren(articleHeader(article));const target=$("articleArrivals");target.replaceChildren();
+    const entries=article.arrivals||[];if(!entries.length)target.append(node("p","muted","Noch keine Zugänge."));
+    entries.forEach(entry=>{const date=dateFromValue(entry.date);const card=node("article","arrival-card");const head=node("div","arrival-head");head.append(node("span",null,entry.supplier||"—"),node("span",null,date?date.toLocaleDateString(state.lang):"—"));const values=node("div","arrival-values");[["Zugang",entry.quantity],["alt",entry.old],["neu",entry.new]].forEach(([label,value])=>{const field=node("span");field.append(node("small",null,label),node("b",null,String(value??0)));values.append(field);});card.append(head,values);target.append(card);});
+  }
+}
+function renderLocations(){
+  const target=$("articleLocations");target.replaceChildren();const locations=state.selectedArticle?.locations||[];
+  locations.forEach(place=>{const record=node("article","location-record");const top=node("div","location-record-top");top.append(node("strong",null,place.code),node("span",null,`Ebene ${place.level}`),node("span","spacer",`${place.quantity} St.`));const edit=node("button","icon-flat","✎");edit.type="button";edit.addEventListener("click",()=>openLocationDialog(place));top.append(edit);const stack=node("div","level-stack");[5,4,3,2,1].forEach(level=>{const row=node("div",`level-row${Number(place.level)===level?" active":""}`,String(level));if(Number(place.level)===level)row.append(`   ${place.code}`);stack.append(row);});record.append(top,stack);target.append(record);});
+}
+function openLocationDialog(place=null){$("locationOriginal").value=place?.code||"";$("locationCode").value=place?.code||"";$("locationLevel").value=String(place?.level||1);$("locationQuantity").value=String(place?.quantity||0);setMessage($("locationMessage"),"");$("locationModal").classList.remove("hidden");}
+function closeLocationDialog(){$("locationModal").classList.add("hidden");}
+async function saveLocation(event){
+  event.preventDefault();const payload={ean:state.selectedArticle.ean,originalCode:$("locationOriginal").value,code:$("locationCode").value.trim().toUpperCase(),level:Number($("locationLevel").value),quantity:Number($("locationQuantity").value)};
+  try{
+    if(demoMode){const locations=state.selectedArticle.locations||[];const index=locations.findIndex(place=>place.code===payload.originalCode);const value={code:payload.code,level:payload.level,quantity:payload.quantity};if(index>=0)locations[index]=value;else locations.push(value);state.selectedArticle.physical=locations.reduce((sum,item)=>sum+item.quantity,0);}
+    else {const response=await call.saveTireLocation(payload);state.selectedArticle=response.data.tire;}
+    closeLocationDialog();renderArticleDetail("places");showToast("Lagerplatz gespeichert.");
+  }catch(error){console.error(error);setMessage($("locationMessage"),displayError(error));}
+}
+async function openArticleScanner(){
+  $("articleEanInput").value="";setMessage($("articleScanMessage"),"");$("articleScannerModal").classList.remove("hidden");
+  if(!("BarcodeDetector" in window)||!navigator.mediaDevices?.getUserMedia){setMessage($("articleScanMessage"),t("cameraUnavailable"));$("articleEanInput").focus();return;}
+  try{const formats=await BarcodeDetector.getSupportedFormats();const detector=new BarcodeDetector({formats:["ean_13","ean_8","upc_a","code_128"].filter(value=>formats.includes(value))});state.articleStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});const video=$("articleCamera");video.srcObject=state.articleStream;video.style.display="block";await video.play();const tick=async()=>{if(!state.articleStream)return;try{const codes=await detector.detect(video);if(codes[0]?.rawValue){$("articleEanInput").value=cleanEan(codes[0].rawValue);await useArticleEan();return;}}catch{}state.articleScanTimer=setTimeout(tick,220);};tick();}catch(error){console.error(error);setMessage($("articleScanMessage"),t("cameraUnavailable"));}
+}
+async function closeArticleScanner(){clearTimeout(state.articleScanTimer);state.articleScanTimer=null;state.articleStream?.getTracks().forEach(track=>track.stop());state.articleStream=null;const video=$("articleCamera");video.pause();video.srcObject=null;video.style.display="none";$("articleScannerModal").classList.add("hidden");}
+async function useArticleEan(){const value=cleanEan($("articleEanInput").value);if(value.length<8){setMessage($("articleScanMessage"),"EAN ist ungültig.");return;}await closeArticleScanner();$("warehouseMode").checked=false;$("articleQuery").value=value;showPage("article",false);await searchArticles();}
+
 function openScanner(item){
   state.selected=item;
   $("scanTitle").textContent=`${item.brand||""} ${item.description||item.size||""}`.trim();
@@ -298,16 +416,21 @@ async function loadUsers(){
 }
 async function editUser(user,active){ const displayName=active?(prompt("Name:",user.displayName||"")||"").trim():user.displayName; if(active&&!displayName)return; try{await call.setUserAccess({uid:user.id,active,displayName,role:user.role==="admin"?"admin":"worker"});await loadUsers();}catch(error){alert(displayError(error));} }
 async function importContainer(){ setMessage($("adminMessage"),""); try{const payload=JSON.parse($("containerJson").value);const total=(payload.items||[]).reduce((sum,item)=>sum+Number(item.requiredQty||0),0);if(total>70)throw new Error(t("max70"));await call.importContainer(payload);setMessage($("adminMessage"),t("imported"),true);$("containerJson").value="";}catch(error){console.error(error);setMessage($("adminMessage"),displayError(error));} }
+async function importTires(){setMessage($("tireImportMessage"),"");try{const payload=JSON.parse($("tireJson").value);const response=await call.importTires({tires:Array.isArray(payload)?payload:[payload]});setMessage($("tireImportMessage"),`${response.data.count} Artikel importiert.`,true);$("tireJson").value="";}catch(error){console.error(error);setMessage($("tireImportMessage"),displayError(error));}}
 
 $("loginForm").addEventListener("submit",login); $("pendingLogout").addEventListener("click",()=>signOut(auth)); $("logoutButton").addEventListener("click",()=>signOut(auth));
-$("menuButton").addEventListener("click",()=>openDrawer(true)); $("drawerShade").addEventListener("click",()=>openDrawer(false)); $("backButton").addEventListener("click",()=>showPage("containers"));
+$("menuButton").addEventListener("click",()=>openDrawer(true)); $("drawerShade").addEventListener("click",()=>openDrawer(false)); $("backButton").addEventListener("click",()=>showPage(state.page.startsWith("article")?"article":"containers",false));
 document.querySelectorAll(".nav-item[data-page]").forEach(button=>button.addEventListener("click",()=>showPage(button.dataset.page)));
 $("language").addEventListener("change",event=>{state.lang=event.target.value;localStorage.setItem("tirescan.lang",state.lang);applyLanguage();});
 $("findContainer").addEventListener("click",findContainer); $("containerNumber").addEventListener("keydown",event=>{if(event.key==="Enter")findContainer();}); $("scanContainer").addEventListener("click",()=>{showToast(t("cameraUnavailable"));$("containerNumber").focus();});
 $("confirmContainer").addEventListener("click",confirmSearchedContainer); $("refreshMine").addEventListener("click",loadMyContainers); $("finishContainer").addEventListener("click",requestFinalize);
 $("scannedEan").addEventListener("input",validateEan); $("startCamera").addEventListener("click",startCamera); $("closeScanner").addEventListener("click",closeScanner); $("pickForm").addEventListener("submit",submitPick);
 $("confirmNo").addEventListener("click",closeConfirm); $("confirmYes").addEventListener("click",async()=>{const action=state.confirmAction;closeConfirm();if(action)await action();});
-$("loadUsers").addEventListener("click",loadUsers); $("importContainer").addEventListener("click",importContainer);
+$("loadUsers").addEventListener("click",loadUsers); $("importContainer").addEventListener("click",importContainer);$("importTires").addEventListener("click",importTires);
+$("articleSearchForm").addEventListener("submit",event=>{event.preventDefault();searchArticles();});
+$("warehouseMode").addEventListener("change",()=>{$("articleQuery").placeholder=$("warehouseMode").checked?"Lagerplatz, z. B. K59":"225/45 R18 V Nexen";$("articleSearchHint").textContent=$("warehouseMode").checked?"Alle Reifen an einem Lagerplatz anzeigen":"Größe, Marke, Artikelnummer oder EAN eingeben";});
+$("scanArticle").addEventListener("click",openArticleScanner);$("closeArticleScanner").addEventListener("click",closeArticleScanner);$("useArticleEan").addEventListener("click",useArticleEan);$("articleEanInput").addEventListener("keydown",event=>{if(event.key==="Enter")useArticleEan();});
+$("addLocation").addEventListener("click",()=>openLocationDialog());$("cancelLocation").addEventListener("click",closeLocationDialog);$("locationForm").addEventListener("submit",saveLocation);
 $("messageButton").addEventListener("click",()=>showToast("Keine neuen Nachrichten")); $("moreButton").addEventListener("click",()=>showToast(state.profile?.displayName||state.user?.email||"TireScan"));
 if(demoMode){
   state.user={uid:"demo"}; state.profile={displayName:"ANDREJS",active:true}; state.container={id:"23620",number:"23620",assignedTo:"demo",assignedName:"ANDREJS",status:"active",totalQty:12,pickedQty:8};

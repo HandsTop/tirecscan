@@ -68,7 +68,31 @@
     </aside>
     <main>
       <section id="homePage" class="page hidden placeholder-page"><img src="./logo.png" alt="TireScan"><h1>TireScan mobile App</h1><p data-i18n="demoModule">Dieses Modul ist für die nächste Ausbaustufe vorbereitet.</p></section>
-      <section id="articlePage" class="page hidden placeholder-page"><h1>Artikelsuche</h1><p data-i18n="demoModule">Dieses Modul ist für die nächste Ausbaustufe vorbereitet.</p></section>
+      <section id="articlePage" class="page hidden article-search-page">
+        <form id="articleSearchForm" class="article-search-form" novalidate>
+          <label class="warehouse-toggle" for="warehouseMode"><input id="warehouseMode" type="checkbox"><span class="toggle-track"><span></span></span><small>Lager</small></label>
+          <input id="articleQuery" autocomplete="off" maxlength="80" placeholder="225/45 R18 V Nexen" aria-label="Artikel, Größe, Marke oder EAN">
+          <button id="searchArticles" class="search-button" type="submit" aria-label="Suchen">⌕</button>
+          <button id="scanArticle" class="barcode-button" type="button" aria-label="EAN scannen"><span></span></button>
+        </form>
+        <p id="articleSearchHint" class="search-hint">Größe, Marke, Artikelnummer oder EAN eingeben</p>
+        <p id="articleMessage" class="message" role="status"></p>
+        <div id="articleResults" class="article-results"></div>
+      </section>
+      <section id="articlePlacesPage" class="page hidden article-detail-page">
+        <div id="placesArticleHeader"></div>
+        <div id="placesSummary" class="stock-summary"></div>
+        <button id="addLocation" class="secondary detail-action">HINZUFÜGEN</button>
+        <div id="articleLocations" class="location-list"></div>
+      </section>
+      <section id="articleHistoryPage" class="page hidden article-detail-page">
+        <div id="historyArticleHeader"></div>
+        <div id="articleHistory" class="history-list"></div>
+      </section>
+      <section id="articleArrivalsPage" class="page hidden article-detail-page">
+        <div id="arrivalsArticleHeader"></div>
+        <div id="articleArrivals" class="arrival-list"></div>
+      </section>
       <section id="storagePage" class="page hidden placeholder-page"><h1>Einlagerungslisten</h1><p data-i18n="demoModule">Dieses Modul ist für die nächste Ausbaustufe vorbereitet.</p></section>
       <section id="settingsPage" class="page hidden placeholder-page"><h1>Einstellungen</h1><p data-i18n="demoModule">Dieses Modul ist für die nächste Ausbaustufe vorbereitet.</p></section>
       <section id="containersPage" class="page picking-page">
@@ -104,6 +128,11 @@
             <textarea id="containerJson" rows="12" spellcheck="false"></textarea>
             <button id="importContainer" class="primary wide" data-i18n="import">Importieren</button><p id="adminMessage" class="message" role="status"></p>
           </article>
+          <article class="panel">
+            <h2>Reifenkatalog importieren</h2><p class="muted">JSON-Array mit Artikeln, Beständen und Lagerplätzen einfügen.</p>
+            <textarea id="tireJson" rows="12" spellcheck="false" placeholder='[{"ean":"5420068698523","articleNo":"23-289","brand":"Nexen","size":"225/45 R18 95V","locations":[{"code":"K59","level":3,"quantity":8}]}]'></textarea>
+            <button id="importTires" class="primary wide">Artikel importieren</button><p id="tireImportMessage" class="message" role="status"></p>
+          </article>
         </div>
       </section>
     </main>
@@ -129,6 +158,26 @@
   </div>
   <div id="confirmModal" class="modal centered hidden" role="dialog" aria-modal="true" aria-labelledby="confirmText">
     <div class="modal-card confirm-dialog"><p id="confirmText"></p><div class="dialog-actions"><button id="confirmNo" class="text-button">NEIN</button><button id="confirmYes" class="text-button accent">JA</button></div></div>
+  </div>
+  <div id="articleScannerModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="articleScanTitle">
+    <div class="modal-card article-scan-dialog">
+      <div class="dialog-title"><strong id="articleScanTitle">EAN scannen</strong><button id="closeArticleScanner" class="text-button" type="button">✕</button></div>
+      <video id="articleCamera" playsinline muted></video>
+      <label for="articleEanInput">EAN</label>
+      <div class="article-ean-entry"><span class="mini-barcode"></span><input id="articleEanInput" inputmode="numeric" autocomplete="off" maxlength="14"><button id="useArticleEan" class="primary" type="button">SUCHEN</button></div>
+      <p id="articleScanMessage" class="message" role="status"></p>
+    </div>
+  </div>
+  <div id="locationModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="locationTitle">
+    <form id="locationForm" class="modal-card location-dialog">
+      <h2 id="locationTitle">Lagerplatz</h2>
+      <input id="locationOriginal" type="hidden">
+      <label for="locationCode">Lager</label><input id="locationCode" maxlength="20" autocomplete="off" required>
+      <label for="locationLevel">Ebene</label><input id="locationLevel" type="number" min="1" max="9" inputmode="numeric" required>
+      <label for="locationQuantity">Bestand</label><input id="locationQuantity" type="number" min="0" max="9999" inputmode="numeric" required>
+      <p id="locationMessage" class="message" role="alert"></p>
+      <div class="dialog-actions"><button id="cancelLocation" class="text-button" type="button">ABBRECHEN</button><button class="text-button accent" type="submit">SPEICHERN</button></div>
+    </form>
   </div>
   <div id="toast" class="toast hidden" role="status"></div>
   <script type="module" src="./app.js"></script>
