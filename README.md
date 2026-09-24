@@ -43,6 +43,32 @@ Administrators can paste JSON in the Administration screen:
 
 Each container is limited to 70 tires. Large orders are split into multiple containers by the source/ERP system and imported separately.
 
+## Article search and tire catalog
+
+`Artikelsuche` accepts an EAN, article number, brand, storage location, or a compact tire query such as `225/4518vnexen`. P is physical stock, V is available stock, B is ordered stock and T is received stock waiting to be entered. Administrators can import up to 100 catalog records at once:
+
+```json
+[
+  {
+    "ean": "5420068698523",
+    "articleNo": "23-289",
+    "brand": "Nexen",
+    "size": "225/45 R18 95V",
+    "description": "N'Fera Sport SU2",
+    "available": 14,
+    "ordered": 8,
+    "arrivedPending": 2,
+    "turnover": 72,
+    "locations": [
+      { "code": "WX14", "level": 1, "quantity": 10 },
+      { "code": "K59", "level": 3, "quantity": 8 }
+    ]
+  }
+]
+```
+
+Physical stock is calculated from all location quantities. Changes to storage locations are written to the article history automatically.
+
 ## Deployment
 
 Install the Firebase CLI, authenticate to the correct project, and deploy:
