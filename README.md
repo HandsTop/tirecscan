@@ -58,6 +58,8 @@ Each container is limited to 70 tires. Large orders are split into multiple cont
     "available": 14,
     "ordered": 8,
     "arrivedPending": 2,
+    "sales12Months": 26,
+    "averageStock12Months": 18,
     "turnover": 72,
     "locations": [
       { "site": "Friesoythe", "code": "WX14", "level": 1, "quantity": 10, "available": 8 },
@@ -68,6 +70,8 @@ Each container is limited to 70 tires. Large orders are split into multiple cont
 ```
 
 Physical and available stock are calculated from all location quantities. P/V values turn red and the `LAGERPLÄTZE` button turns green only when stock exists at two or more different sites (for example Friesoythe and Thüle), not merely at two storage positions inside one site. Stock and location changes are restricted to administrators and written to the article history automatically.
+
+The sales bar uses `sales12Months / averageStock12Months` to calculate a 12-month sales rating. Existing records without these fields continue to use the legacy `turnover` value. An administrator assigns every employee's display name in Administration; that name is then stored with new warehouse movements.
 
 ## Deployment
 
