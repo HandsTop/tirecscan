@@ -14,6 +14,7 @@ const functions = getFunctions(app, functionsRegion || "europe-west1");
 const call = {
   ensureProfile: httpsCallable(functions, "ensureProfile"),
   getContainerBundle: httpsCallable(functions, "getContainerBundle"),
+  resolveContainerArticles: httpsCallable(functions, "resolveContainerArticles"),
   claimContainer: httpsCallable(functions, "claimContainer"),
   confirmPick: httpsCallable(functions, "confirmPick"),
   finalizeContainer: httpsCallable(functions, "finalizeContainer"),
@@ -468,14 +469,56 @@ async function loadUsers(){
 }
 async function editUser(user,active){ const displayName=active?(prompt("Name:",user.displayName||"")||"").trim():user.displayName; if(active&&!displayName)return; try{await call.setUserAccess({uid:user.id,active,displayName,role:user.role==="admin"?"admin":"worker"});await loadUsers();}catch(error){alert(displayError(error));} }
 async function editUserName(user){const displayName=(prompt("Name des Mitarbeiters:",user.displayName||"")||"").trim();if(!displayName)return;try{await call.setUserAccess({uid:user.id,active:user.active===true,displayName,role:user.role==="admin"?"admin":"worker"});await loadUsers();showToast("Name gespeichert.");}catch(error){alert(displayError(error));}}
-function addContainerDraftItem(){
-  setMessage($("adminMessage"),"");const item={id:String(state.containerDraftItems.length+1),sequence:state.containerDraftItems.length+1,articleNo:$("itemArticleNo").value.trim(),ean:cleanEan($("itemEan").value),brand:$("itemBrand").value.trim(),size:$("itemSize").value.trim(),description:$("itemModel").value.trim(),location:$("itemLocation").value.trim().toUpperCase(),level:$("itemLevel").value,requiredQty:Number($("itemQuantity").value)};
-  if(!item.articleNo||item.ean.length<8||!item.brand||!item.size||!item.location||!Number.isInteger(item.requiredQty)||item.requiredQty<1){setMessage($("adminMessage"),"Bitte alle Daten der Position korrekt ausfüllen.");return;}
-  const total=state.containerDraftItems.reduce((sum,value)=>sum+value.requiredQty,0)+item.requiredQty;if(total>70){setMessage($("adminMessage"),t("max70"));return;}state.containerDraftItems.push(item);["itemArticleNo","itemEan","itemBrand","itemSize","itemModel","itemLocation"].forEach(id=>$(id).value="");$("itemLevel").value="1";$("itemQuantity").value="1";renderContainerDraft();
+function parseContainerBulk(value){
+  return String(value||"").split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map((line,index)=>{
+    const parts=line.split(/\t|;|,|\s+/).map(value=>value.trim()).filter(Boolean);if(index===0&&/artikel|article/i.test(parts[0]||""))return null;
+    return {articleNo:parts[0]||"",requiredQty:Number(parts[1]||1)};
+  }).filter(Boolean);
+}
+async function resolveContainerRows(rows){
+  if(!rows.length)throw new Error("Mindestens eine Artikelnummer eingeben.");
+  if(rows.length>70)throw new Error("Maximal 70 Positionen pro Container.");
+  rows.forEach(row=>{if(!row.articleNo||!Number.isInteger(row.requiredQty)||row.requiredQty<1||row.requiredQty>70)throw new Error(`Ungültige Position: ${row.articleNo||"ohne Artikelnummer"}.`);});
+  const requestedTotal=rows.reduce((sum,row)=>sum+row.requiredQty,0);if(requestedTotal>70)throw new Error(t("max70"));
+  let articles;
+  if(demoMode)articles=DEMO_ARTICLES.filter(article=>rows.some(row=>normalizeArticleSearch(row.articleNo)===normalizeArticleSearch(article.articleNo)));
+  else {const response=await call.resolveContainerArticles({articleNumbers:rows.map(row=>row.articleNo)});articles=response.data?.articles||[];}
+  const byNumber=new Map(articles.map(article=>[normalizeArticleSearch(article.articleNo),article]));const missing=[];
+  const resolved=rows.map(row=>{const article=byNumber.get(normalizeArticleSearch(row.articleNo));if(!article){missing.push(row.articleNo);return null;}const place=(article.locations||[]).find(location=>Number(location.available??location.quantity??0)>0)||(article.locations||[])[0]||{};return {articleNo:article.articleNo,ean:article.ean,brand:article.brand,size:article.size,description:article.description,location:place.code||"—",level:String(place.level||1),requiredQty:row.requiredQty};}).filter(Boolean);
+  if(missing.length)throw new Error(`Nicht im Reifenkatalog gefunden: ${missing.join(", ")}`);
+  return resolved;
+}
+function appendContainerDraft(items){
+  const next=state.containerDraftItems.map(item=>({...item}));items.forEach(item=>{const existing=next.find(value=>normalizeArticleSearch(value.articleNo)===normalizeArticleSearch(item.articleNo));if(existing)existing.requiredQty+=item.requiredQty;else next.push({...item});});
+  const total=next.reduce((sum,value)=>sum+value.requiredQty,0);if(total>70)throw new Error(t("max70"));
+  next.forEach((item,index)=>{item.id=String(index+1);item.sequence=index+1;});state.containerDraftItems=next;renderContainerDraft();
+}
+async function addContainerDraftItem(){
+  setMessage($("adminMessage"),"");const button=$("addContainerItem");button.disabled=true;
+  try{setMessage($("adminMessage"),"Artikel wird gesucht …",true);const items=await resolveContainerRows([{articleNo:$("itemArticleNo").value.trim(),requiredQty:Number($("itemQuantity").value)}]);appendContainerDraft(items);$("itemArticleNo").value="";$("itemQuantity").value="1";setMessage($("adminMessage"),"Artikel und Lagerplatz wurden übernommen.",true);$("itemArticleNo").focus();}
+  catch(error){setMessage($("adminMessage"),displayError(error));}finally{button.disabled=false;}
+}
+async function addContainerBulk(){
+  const button=$("addContainerBulk");button.disabled=true;setMessage($("adminMessage"),"Liste wird geprüft …",true);
+  try{const items=await resolveContainerRows(parseContainerBulk($("containerBulkText").value));appendContainerDraft(items);$("containerBulkText").value="";setMessage($("adminMessage"),`${items.length} Positionen wurden übernommen.`,true);}
+  catch(error){setMessage($("adminMessage"),displayError(error));}finally{button.disabled=false;}
 }
 function renderContainerDraft(){const target=$("containerDraftList");target.replaceChildren();state.containerDraftItems.forEach((item,index)=>{const row=node("div","draft-row");const text=node("span");text.append(node("b",null,`${item.articleNo} · ${item.brand}`),node("small",null,`${item.size} · ${item.location}/${item.level} · ${item.requiredQty} St.`));const remove=node("button","icon-flat","✕");remove.type="button";remove.addEventListener("click",()=>{state.containerDraftItems.splice(index,1);state.containerDraftItems.forEach((value,i)=>{value.id=String(i+1);value.sequence=i+1;});renderContainerDraft();});row.append(text,remove);target.append(row);});}
 function saveContainerForm(event){event.preventDefault();setMessage($("adminMessage"),"");try{const number=cleanId($("containerAdminNumber").value);if(!number||!state.containerDraftItems.length)throw new Error("Containernummer und mindestens eine Position sind erforderlich.");const payload={number,orderNumber:$("containerOrder").value.trim(),items:state.containerDraftItems.map(item=>({...item}))};enqueueOperation("importContainer",payload);state.containerDraftItems=[];event.target.reset();renderContainerDraft();setMessage($("adminMessage"),"Container gespeichert. Bitte synchronisieren.",true);}catch(error){setMessage($("adminMessage"),displayError(error));}}
 function saveTireForm(event){event.preventDefault();setMessage($("tireImportMessage"),"");try{const physical=Number($("tirePhysical").value),available=Number($("tireAvailable").value);if(available>physical)throw new Error("Verfügbarer Bestand darf nicht größer als P sein.");const tire={ean:cleanEan($("tireEan").value),articleNo:$("tireArticleNo").value.trim(),brand:$("tireBrand").value.trim(),size:$("tireSize").value.trim(),description:$("tireModel").value.trim(),ordered:Number($("tireOrdered").value),arrivedPending:Number($("tireArrived").value),sales12Months:Number($("tireSales").value),averageStock12Months:Number($("tireAverageStock").value),locations:[{site:$("tireSite").value.trim(),code:$("tireLocation").value.trim().toUpperCase(),level:Number($("tireLevel").value),quantity:physical,available}]};if(tire.ean.length<8||!tire.articleNo||!tire.brand||!tire.size||!tire.locations[0].code)throw new Error("Bitte alle Pflichtfelder korrekt ausfüllen.");enqueueOperation("importTires",{tires:[tire]});event.target.reset();$("tireSite").value="Friesoythe";$("tireLevel").value="1";["tirePhysical","tireAvailable","tireOrdered","tireArrived","tireSales","tireAverageStock"].forEach(id=>$(id).value="0");setMessage($("tireImportMessage"),"Artikel gespeichert. Bitte synchronisieren.",true);}catch(error){setMessage($("tireImportMessage"),displayError(error));}}
+function parseDelimitedRow(line,delimiter){let values=[],current="",quoted=false;for(let i=0;i<line.length;i++){const char=line[i];if(char==='"'){if(quoted&&line[i+1]==='"'){current+='"';i++;}else quoted=!quoted;}else if(char===delimiter&&!quoted){values.push(current.trim());current="";}else current+=char;}values.push(current.trim());return values;}
+function headerKey(value){return String(value||"").replace(/ß/g,"ss").replace(/ø/g,"o").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");}
+function parseCatalogBulk(value){
+  const lines=String(value||"").replace(/^\uFEFF/,"").split(/\r?\n/).filter(line=>line.trim());if(lines.length<2)throw new Error("Die Datei muss eine Kopfzeile und mindestens einen Artikel enthalten.");
+  const first=lines[0],delimiter=["\t",";",","].sort((a,b)=>first.split(b).length-first.split(a).length)[0];const headers=parseDelimitedRow(first,delimiter).map(headerKey);const aliases={articleNo:["artikelnummer","artikelnr","articleno","artno"],ean:["ean","barcode"],brand:["marke","brand"],size:["grosse","groesse","size"],description:["modell","model","bezeichnung","description"],site:["standort","site","locationname"],code:["lager","lagerplatz","code","location"],level:["ebene","level"],physical:["p","bestand","physical"],available:["v","verfugbar","available"],ordered:["b","bestellt","ordered"],arrivedPending:["t","eingetroffen","arrived"],sales12Months:["verkaufe12","verkauf12","sales12months"],averageStock12Months:["bestand12","durchschnitt12","obestand12","averagestock12months"]};
+  const indexes={};Object.entries(aliases).forEach(([key,names])=>{indexes[key]=headers.findIndex(header=>names.includes(header));});["articleNo","ean","brand","size","code"].forEach(key=>{if(indexes[key]<0)throw new Error(`Pflichtspalte fehlt: ${aliases[key][0]}.`);});
+  const number=(row,key,fallback=0)=>{const raw=indexes[key]>=0?row[indexes[key]]:"";const value=raw===""?fallback:Number(String(raw).replace(",","."));if(!Number.isFinite(value)||value<0)throw new Error(`Ungültiger Zahlenwert in ${key}.`);return Math.round(value);};
+  const textValue=(row,key,fallback="")=>indexes[key]>=0?(row[indexes[key]]||fallback):fallback;
+  const tires=lines.slice(1).map((line,index)=>{const row=parseDelimitedRow(line,delimiter);const physical=number(row,"physical",0),available=number(row,"available",physical);if(available>physical)throw new Error(`Zeile ${index+2}: V darf nicht größer als P sein.`);const tire={articleNo:textValue(row,"articleNo"),ean:cleanEan(textValue(row,"ean")),brand:textValue(row,"brand"),size:textValue(row,"size"),description:textValue(row,"description"),ordered:number(row,"ordered",0),arrivedPending:number(row,"arrivedPending",0),sales12Months:number(row,"sales12Months",0),averageStock12Months:number(row,"averageStock12Months",physical),locations:[{site:textValue(row,"site","Friesoythe"),code:textValue(row,"code").toUpperCase(),level:number(row,"level",1),quantity:physical,available}]};if(!tire.articleNo||tire.ean.length<8||!tire.brand||!tire.size||!tire.locations[0].code)throw new Error(`Zeile ${index+2} enthält unvollständige Pflichtdaten.`);return tire;});
+  if(!tires.length||tires.length>10000)throw new Error("1 bis 10000 Artikel pro Datei sind möglich.");return tires;
+}
+function importCatalogBulk(){setMessage($("catalogBulkMessage"),"");try{const tires=parseCatalogBulk($("catalogBulkText").value);for(let index=0;index<tires.length;index+=100)state.pendingOperations.push({id:crypto.randomUUID?.()||`${Date.now()}-${index}`,type:"importTires",payload:{tires:tires.slice(index,index+100)},createdAt:new Date().toISOString()});persistDeviceState();setMessage($("catalogBulkMessage"),`${tires.length} Artikel in ${Math.ceil(tires.length/100)} Paketen vorgemerkt. Jetzt über ⋮ synchronisieren.`,true);}catch(error){setMessage($("catalogBulkMessage"),displayError(error));}}
+async function loadCatalogFile(event){const file=event.target.files?.[0];if(!file)return;try{$("catalogBulkText").value=await file.text();setMessage($("catalogBulkMessage"),`${file.name} geladen. Bitte Liste prüfen und vormerken.`,true);}catch(error){setMessage($("catalogBulkMessage"),displayError(error));}}
 
 $("loginForm").addEventListener("submit",login); $("pendingLogout").addEventListener("click",()=>signOut(auth)); $("logoutButton").addEventListener("click",()=>signOut(auth));
 $("menuButton").addEventListener("click",()=>openDrawer(true)); $("drawerShade").addEventListener("click",()=>openDrawer(false)); $("backButton").addEventListener("click",()=>showPage(state.page.startsWith("article")?"article":"containers",false));
@@ -485,7 +528,7 @@ $("findContainer").addEventListener("click",findContainer); $("containerNumber")
 $("confirmContainer").addEventListener("click",confirmSearchedContainer); $("refreshMine").addEventListener("click",loadMyContainers); $("finishContainer").addEventListener("click",requestFinalize);
 $("scannedEan").addEventListener("input",validateEan); $("startCamera").addEventListener("click",startCamera); $("closeScanner").addEventListener("click",closeScanner); $("pickForm").addEventListener("submit",submitPick);
 $("confirmNo").addEventListener("click",closeConfirm); $("confirmYes").addEventListener("click",async()=>{const action=state.confirmAction;closeConfirm();if(action)await action();});
-$("loadUsers").addEventListener("click",loadUsers);$("addContainerItem").addEventListener("click",addContainerDraftItem);$("containerAdminForm").addEventListener("submit",saveContainerForm);$("tireAdminForm").addEventListener("submit",saveTireForm);
+$("loadUsers").addEventListener("click",loadUsers);$("addContainerItem").addEventListener("click",addContainerDraftItem);$("addContainerBulk").addEventListener("click",addContainerBulk);$("containerAdminForm").addEventListener("submit",saveContainerForm);$("tireAdminForm").addEventListener("submit",saveTireForm);$("catalogBulkFile").addEventListener("change",loadCatalogFile);$("importCatalogBulk").addEventListener("click",importCatalogBulk);
 $("articleSearchForm").addEventListener("submit",event=>{event.preventDefault();searchArticles();});
 $("warehouseMode").addEventListener("change",()=>{$("articleQuery").placeholder=$("warehouseMode").checked?"Lagerplatz, z. B. K59":"225/45 R18 V Nexen";$("articleSearchHint").textContent=$("warehouseMode").checked?"Alle Reifen an einem Lagerplatz anzeigen":"Größe, Marke, Artikelnummer oder EAN eingeben";});
 $("scanArticle").addEventListener("click",openArticleScanner);$("closeArticleScanner").addEventListener("click",closeArticleScanner);$("useArticleEan").addEventListener("click",useArticleEan);$("articleEanInput").addEventListener("keydown",event=>{if(event.key==="Enter")useArticleEan();});

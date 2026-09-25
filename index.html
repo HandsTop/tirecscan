@@ -128,23 +128,23 @@
             <button id="loadUsers" class="secondary wide" data-i18n="reload">Neu laden</button><div id="usersList" class="stack"></div>
           </article>
           <article class="panel">
-            <h2>Container anlegen</h2><p class="muted">Containerdaten eingeben und Reifenpositionen hinzufügen.</p>
+            <h2>Container anlegen</h2><p class="muted">Nur Artikelnummer und Menge eingeben. Reifendaten und Lagerplatz werden automatisch aus dem Katalog übernommen.</p>
             <form id="containerAdminForm" class="admin-form">
               <label>Containernummer<input id="containerAdminNumber" maxlength="32" required></label>
               <label>Auftrag / Referenz<input id="containerOrder" maxlength="80"></label>
               <fieldset><legend>Neue Position</legend>
                 <div class="form-grid">
-                  <label>Artikelnummer<input id="itemArticleNo" maxlength="40"></label>
-                  <label>EAN<input id="itemEan" inputmode="numeric" maxlength="14"></label>
-                  <label>Marke<input id="itemBrand" maxlength="80"></label>
-                  <label>Größe<input id="itemSize" maxlength="80" placeholder="225/45 R18 95V"></label>
-                  <label>Modell<input id="itemModel" maxlength="120"></label>
-                  <label>Lager<input id="itemLocation" maxlength="20"></label>
-                  <label>Ebene<input id="itemLevel" type="number" min="1" max="9" value="1"></label>
+                  <label>Artikelnummer<input id="itemArticleNo" maxlength="40" autocomplete="off" placeholder="z. B. 132-777"></label>
                   <label>Anzahl<input id="itemQuantity" type="number" min="1" max="70" value="1"></label>
                 </div>
                 <button id="addContainerItem" class="secondary wide" type="button">Position hinzufügen</button>
               </fieldset>
+              <details class="bulk-box">
+                <summary>Mehrere Positionen aus Excel / CSV hinzufügen</summary>
+                <p class="muted">Zwei Spalten einfügen: <b>Artikelnummer</b> und <b>Anzahl</b>. Eine Überschrift ist optional.</p>
+                <textarea id="containerBulkText" rows="7" placeholder="Artikelnummer&#9;Anzahl&#10;132-777&#9;4&#10;29-1450&#9;2"></textarea>
+                <button id="addContainerBulk" class="secondary wide" type="button">Liste prüfen und hinzufügen</button>
+              </details>
               <div id="containerDraftList" class="draft-list"></div>
               <button class="primary wide" type="submit">Container speichern</button>
             </form>
@@ -172,6 +172,15 @@
               <button class="primary wide" type="submit">Artikel speichern</button>
             </form>
             <p id="tireImportMessage" class="message" role="status"></p>
+            <details class="bulk-box">
+              <summary>Kompletten Reifenkatalog importieren</summary>
+              <p class="muted">CSV/TSV aus Excel laden oder unten einfügen. Auch Listen mit mehr als 1000 Artikeln werden in Paketen synchronisiert.</p>
+              <p class="column-help">Spalten: Artikelnummer, EAN, Marke, Größe, Modell, Standort, Lager, Ebene, P, V, B, T, Verkäufe12, ØBestand12</p>
+              <input id="catalogBulkFile" type="file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values">
+              <textarea id="catalogBulkText" rows="9" placeholder="Artikelnummer;EAN;Marke;Größe;Modell;Standort;Lager;Ebene;P;V;B;T;Verkäufe12;ØBestand12"></textarea>
+              <button id="importCatalogBulk" class="primary wide" type="button">Katalog prüfen und vormerken</button>
+              <p id="catalogBulkMessage" class="message" role="status"></p>
+            </details>
           </article>
         </div>
       </section>

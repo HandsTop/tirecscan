@@ -41,6 +41,24 @@ const tirePublic = (id, data) => {
   };
 };
 let tireSearchCache = { expiresAt: 0, articles: [] };
+async function resolveTiresByArticleNumber(values) {
+  const requested = [...new Map(values.map(value => [normalizeSearch(value), text(value, 40)]).filter(([key]) => key)).entries()];
+  const resolved = new Map();
+  if (!requested.length) return resolved;
+  const indexSnaps = await db.getAll(...requested.map(([key]) => db.doc(`articleIndex/${key}`)));
+  const eans = new Map();
+  indexSnaps.forEach((snap, index) => { if (snap.exists && snap.data().ean) eans.set(requested[index][0], String(snap.data().ean)); });
+  const missing = requested.filter(([key]) => !eans.has(key));
+  await Promise.all(missing.map(async ([key, articleNo]) => {
+    const snapshot = await db.collection("tires").where("articleNo", "==", articleNo).limit(2).get();
+    if (!snapshot.empty) eans.set(key, snapshot.docs[0].id);
+  }));
+  const pairs = [...eans.entries()];
+  if (!pairs.length) return resolved;
+  const tireSnaps = await db.getAll(...pairs.map(([, tireEan]) => db.doc(`tires/${tireEan}`)));
+  tireSnaps.forEach((snap, index) => { if (snap.exists) resolved.set(pairs[index][0], tirePublic(snap.id, snap.data())); });
+  return resolved;
+}
 function tireMatches(tire, raw, warehouseMode) {
   const search = normalizeSearch(raw); if (!search) return true;
   if (warehouseMode) return tire.locations.some(place => normalizeSearch(place.code).includes(search) || normalizeSearch(place.site).includes(search));
@@ -175,6 +193,14 @@ exports.searchArticles = callable.onCall(async (data, context) => {
   return { articles, truncated: tireSearchCache.articles.length === 500 };
 });
 
+exports.resolveContainerArticles = callable.onCall(async (data, context) => {
+  await activeProfile(context); if (!isAdmin(context)) fail("permission-denied", "Administratorrechte erforderlich.");
+  const articleNumbers = Array.isArray(data?.articleNumbers) ? data.articleNumbers.map(value => text(value, 40)).filter(Boolean) : [];
+  if (!articleNumbers.length || articleNumbers.length > 70) fail("invalid-argument", "1 bis 70 Artikelnummern erforderlich.");
+  const resolved = await resolveTiresByArticleNumber(articleNumbers);
+  return { articles:[...resolved.values()] };
+});
+
 exports.getTireDetails = callable.onCall(async (data, context) => {
   await activeProfile(context); const tireEan = ean(data?.ean); const ref = db.doc(`tires/${tireEan}`); const snap = await ref.get();
   if (!snap.exists) fail("not-found", "Artikel nicht gefunden.");
@@ -219,7 +245,9 @@ exports.importTires = callable.onCall(async (data, context) => {
     const physical = locations.length ? locations.reduce((sum,place)=>sum+place.quantity,0) : integer(row?.physical ?? 0,0,999999,"P");
     const available = locations.length ? locations.reduce((sum,place)=>sum+place.available,0) : integer(row?.available ?? physical,0,physical,"V");
     const salesFields = row?.sales12Months === undefined ? {} : { sales12Months:integer(row.sales12Months,0,999999,"Verkäufe"), averageStock12Months:integer(row?.averageStock12Months ?? physical,0,999999,"Durchschnittsbestand") };
-    batch.set(db.doc(`tires/${tireEan}`), { ean:tireEan, articleNo:text(row?.articleNo,40), brand:text(row?.brand,80), size:text(row?.size,80), description:text(row?.description,160), physical, available, ordered:integer(row?.ordered ?? 0,0,999999,"B"), arrivedPending:integer(row?.arrivedPending ?? 0,0,999999,"T"), turnover:integer(row?.turnover ?? 0,0,100,"Umschlag"), ...salesFields, locations, updatedAt:FieldValue.serverTimestamp(), updatedBy:context.auth.uid }, { merge:true });
+    const articleNo=text(row?.articleNo,40); if(!articleNo)fail("invalid-argument",`Artikelnummer für EAN ${tireEan} fehlt.`); const articleNoNormalized=normalizeSearch(articleNo);if(!articleNoNormalized)fail("invalid-argument",`Artikelnummer für EAN ${tireEan} ist ungültig.`);
+    batch.set(db.doc(`tires/${tireEan}`), { ean:tireEan, articleNo, articleNoNormalized, brand:text(row?.brand,80), size:text(row?.size,80), description:text(row?.description,160), physical, available, ordered:integer(row?.ordered ?? 0,0,999999,"B"), arrivedPending:integer(row?.arrivedPending ?? 0,0,999999,"T"), turnover:integer(row?.turnover ?? 0,0,100,"Umschlag"), ...salesFields, locations, updatedAt:FieldValue.serverTimestamp(), updatedBy:context.auth.uid }, { merge:true });
+    batch.set(db.doc(`articleIndex/${articleNoNormalized}`),{ean:tireEan,articleNo,updatedAt:FieldValue.serverTimestamp()},{merge:true});
   });
   await batch.commit(); tireSearchCache.expiresAt = 0; return { ok:true, count:rows.length };
 });
@@ -229,10 +257,12 @@ exports.importContainer = callable.onCall(async (data, context) => {
   if (!isAdmin(context)) fail("permission-denied", "Administratorrechte erforderlich.");
   const containerId = safeId(data?.number || data?.containerId, "Container");
   if (!Array.isArray(data?.items) || data.items.length < 1 || data.items.length > 70) fail("invalid-argument", "1 bis 70 Positionen erforderlich.");
+  const catalog = await resolveTiresByArticleNumber(data.items.map(item => item?.articleNo));
   const seen = new Set();
   const items = data.items.map((raw, index) => {
     const itemId = safeId(raw.id || String(index + 1), "Positions-ID"); if (seen.has(itemId)) fail("invalid-argument", "Doppelte Positions-ID."); seen.add(itemId);
-    return { id:itemId, sequence:integer(raw.sequence ?? index + 1,1,999,"Reihenfolge"), ean:ean(raw.ean), articleNo:text(raw.articleNo,40), brand:text(raw.brand,80), description:text(raw.description || raw.size,160), size:text(raw.size,100), location:text(raw.location,40), level:text(raw.level,20), requiredQty:integer(raw.requiredQty,1,70,"Menge"), pickedQty:0, status:"open" };
+    const articleNo=text(raw.articleNo,40);const tire=catalog.get(normalizeSearch(articleNo));if(!tire&&!raw.ean)fail("not-found",`Artikel ${articleNo||"—"} wurde im Reifenkatalog nicht gefunden.`);const place=tire?.locations?.find(location=>Number(location.available??location.quantity??0)>0)||tire?.locations?.[0]||{};
+    return { id:itemId, sequence:integer(raw.sequence ?? index + 1,1,999,"Reihenfolge"), ean:ean(raw.ean||tire?.ean), articleNo:articleNo||tire?.articleNo||"", brand:text(raw.brand||tire?.brand,80), description:text(raw.description||raw.size||tire?.description||tire?.size,160), size:text(raw.size||tire?.size,100), location:text(raw.location||place.code||"—",40), level:text(raw.level||place.level||1,20), requiredQty:integer(raw.requiredQty,1,70,"Menge"), pickedQty:0, status:"open" };
   });
   const totalQty = items.reduce((sum,item)=>sum+item.requiredQty,0); if (totalQty > 70) fail("out-of-range", "Ein Container darf höchstens 70 Reifen enthalten.");
   const containerRef = db.doc(`containers/${containerId}`); const exists = await containerRef.get(); if (exists.exists) fail("already-exists", "Container existiert bereits.");
