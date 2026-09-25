@@ -1,4 +1,4 @@
-const CACHE = "tirescan-shell-v3";
+const CACHE = "tirescan-shell-v4";
 const SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./firebase-config.js", "./logo.png", "./manifest.webmanifest"];
 
 self.addEventListener("install", event => {

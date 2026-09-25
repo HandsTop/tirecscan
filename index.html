@@ -168,10 +168,19 @@
       <p id="articleScanMessage" class="message" role="status"></p>
     </div>
   </div>
+  <div id="siteStockModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="siteStockTitle">
+    <div class="modal-card site-stock-dialog">
+      <div class="dialog-title"><strong id="siteStockTitle">—</strong><div><b id="siteStockArticle">—</b><button id="closeSiteStock" class="text-button" type="button" aria-label="Schließen">✕</button></div></div>
+      <p id="siteStockSubtitle" class="dialog-description"></p>
+      <div class="site-stock-total"><strong>Gesamt</strong><div id="siteStockTotals" class="site-stock-values"></div></div>
+      <div id="siteStockSites" class="site-stock-columns"></div>
+    </div>
+  </div>
   <div id="locationModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="locationTitle">
     <form id="locationForm" class="modal-card location-dialog">
       <h2 id="locationTitle">Lagerplatz</h2>
       <input id="locationOriginal" type="hidden">
+      <input id="locationOriginalSite" type="hidden">
       <label for="locationSite">Standort</label><input id="locationSite" maxlength="40" autocomplete="off" placeholder="Friesoythe" required>
       <label for="locationCode">Lager</label><input id="locationCode" maxlength="20" autocomplete="off" required>
       <label for="locationLevel">Ebene</label><input id="locationLevel" type="number" min="1" max="9" inputmode="numeric" required>
