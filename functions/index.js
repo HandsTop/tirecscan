@@ -144,6 +144,19 @@ exports.finalizeContainer = callable.onCall(async (data, context) => {
   return { ok: true };
 });
 
+exports.getContainerBundle = callable.onCall(async (data, context) => {
+  const profile = await activeProfile(context);
+  const containerId = safeId(data?.containerId, "Container");
+  const ref = db.doc(`containers/${containerId}`);
+  const snap = await ref.get();
+  if (!snap.exists) fail("not-found", "Container nicht gefunden.");
+  const container = snap.data();
+  if (container.assignedTo && container.assignedTo !== profile.uid && !isAdmin(context)) fail("permission-denied", `Container ist bereits ${container.assignedName || "einem Mitarbeiter"} zugewiesen.`);
+  const itemsSnap = await ref.collection("items").get();
+  const items = itemsSnap.docs.map(doc => ({ id:doc.id, ...doc.data() }));
+  return { container:{ id:snap.id, ...container }, items };
+});
+
 exports.searchArticles = callable.onCall(async (data, context) => {
   await activeProfile(context);
   const raw = text(data?.query, 80); const warehouseMode = data?.warehouseMode === true;
