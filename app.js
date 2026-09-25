@@ -323,7 +323,7 @@ function renderArticleDetail(view,loading=false){
     const header=node("div","history-row header");["Lager","Benutzer","Datum","Uhrzeit"].forEach(value=>header.append(node("span",null,value)));target.append(header);
     if(loading){target.append(node("p","muted","Historie wird geladen …"));return;}
     const entries=article.history||[];if(!entries.length)target.append(node("p","muted","Noch keine Bewegungen."));
-    entries.forEach(entry=>{const date=dateFromValue(entry.at);const from=[entry.fromSite,entry.from].filter(Boolean).join(" ")||"—";const to=[entry.toSite,entry.to].filter(Boolean).join(" ")||"—";const row=node("div","history-row");[`${from} → ${to}`,entry.user||"—",date?date.toLocaleDateString(state.lang):"—",date?date.toLocaleTimeString(state.lang,{hour:"2-digit",minute:"2-digit"}):"—"].forEach(value=>row.append(node("span",null,value)));target.append(row);});
+    entries.forEach(entry=>{const date=dateFromValue(entry.at);const row=node("div","history-row");[`${entry.from||"—"} → ${entry.to||"—"}`,entry.user||"—",date?date.toLocaleDateString(state.lang):"—",date?date.toLocaleTimeString(state.lang,{hour:"2-digit",minute:"2-digit"}):"—"].forEach(value=>row.append(node("span",null,value)));target.append(row);});
   }else{
     $("arrivalsArticleHeader").replaceChildren(articleHeader(article));const target=$("articleArrivals");target.replaceChildren();
     if(loading){target.append(node("p","muted","Zugänge werden geladen …"));return;}
