@@ -47,6 +47,11 @@
       <button id="messageButton" class="icon-button" aria-label="Nachrichten">✉</button>
       <button id="moreButton" class="icon-button" aria-label="Mehr">⋮</button>
     </header>
+    <div id="moreMenu" class="more-menu hidden" role="menu">
+      <button id="syncNow" type="button" role="menuitem"><span>↻</span><b>Synchronisieren</b></button>
+      <small id="syncPending">Keine ausstehenden Änderungen</small>
+      <small id="syncLast">Noch nicht synchronisiert</small>
+    </div>
     <div id="drawerShade" class="drawer-shade hidden"></div>
     <aside id="drawer" class="drawer" aria-hidden="true">
       <div class="drawer-brand">
@@ -57,7 +62,6 @@
       <button data-page="article" class="nav-item"><span class="nav-icon">⌕</span><span>Artikelsuche</span></button>
       <button data-page="storage" class="nav-item"><span class="nav-icon">☷</span><span>Einlagerungslisten</span></button>
       <button data-page="containers" class="nav-item active"><span class="nav-icon">▦</span><span data-i18n="picking">Kommissionierung</span></button>
-      <button data-page="myWork" class="nav-item"><span class="nav-icon">✓</span><span data-i18n="myContainers">Meine Container</span></button>
       <button data-page="settings" class="nav-item"><span class="nav-icon">⚙</span><span>Einstellungen</span></button>
       <button id="adminNav" data-page="admin" class="nav-item hidden"><span class="nav-icon">◆</span><span data-i18n="administration">Administration</span></button>
       <div class="drawer-footer">
@@ -107,10 +111,10 @@
         </div>
         <div id="containerResult"></div>
         <button id="confirmContainer" class="floating-check hidden" aria-label="Container bestätigen">✓</button>
-      </section>
-      <section id="myWorkPage" class="page hidden">
-        <div class="section-heading"><h1 data-i18n="myContainers">Meine Container</h1><button id="refreshMine" class="flat-button">↻</button></div>
-        <div id="myContainers" class="stack"></div>
+        <section class="active-containers">
+          <div class="section-heading"><h2>Aktive Container</h2><button id="refreshMine" class="flat-button" type="button" aria-label="Aktualisieren">↻</button></div>
+          <div id="myContainers" class="stack"></div>
+        </section>
       </section>
       <section id="workPage" class="page hidden work-page">
         <div id="workOverview" class="work-overview"></div>
@@ -124,14 +128,50 @@
             <button id="loadUsers" class="secondary wide" data-i18n="reload">Neu laden</button><div id="usersList" class="stack"></div>
           </article>
           <article class="panel">
-            <h2 data-i18n="importContainer">Container importieren</h2><p class="muted" data-i18n="importHint">JSON mit Container und Positionen einfügen. Bestehende Container werden nicht überschrieben.</p>
-            <textarea id="containerJson" rows="12" spellcheck="false"></textarea>
-            <button id="importContainer" class="primary wide" data-i18n="import">Importieren</button><p id="adminMessage" class="message" role="status"></p>
+            <h2>Container anlegen</h2><p class="muted">Containerdaten eingeben und Reifenpositionen hinzufügen.</p>
+            <form id="containerAdminForm" class="admin-form">
+              <label>Containernummer<input id="containerAdminNumber" maxlength="32" required></label>
+              <label>Auftrag / Referenz<input id="containerOrder" maxlength="80"></label>
+              <fieldset><legend>Neue Position</legend>
+                <div class="form-grid">
+                  <label>Artikelnummer<input id="itemArticleNo" maxlength="40"></label>
+                  <label>EAN<input id="itemEan" inputmode="numeric" maxlength="14"></label>
+                  <label>Marke<input id="itemBrand" maxlength="80"></label>
+                  <label>Größe<input id="itemSize" maxlength="80" placeholder="225/45 R18 95V"></label>
+                  <label>Modell<input id="itemModel" maxlength="120"></label>
+                  <label>Lager<input id="itemLocation" maxlength="20"></label>
+                  <label>Ebene<input id="itemLevel" type="number" min="1" max="9" value="1"></label>
+                  <label>Anzahl<input id="itemQuantity" type="number" min="1" max="70" value="1"></label>
+                </div>
+                <button id="addContainerItem" class="secondary wide" type="button">Position hinzufügen</button>
+              </fieldset>
+              <div id="containerDraftList" class="draft-list"></div>
+              <button class="primary wide" type="submit">Container speichern</button>
+            </form>
+            <p id="adminMessage" class="message" role="status"></p>
           </article>
           <article class="panel">
-            <h2>Reifenkatalog importieren</h2><p class="muted">JSON-Array mit Artikeln, Beständen und Lagerplätzen einfügen.</p>
-            <textarea id="tireJson" rows="12" spellcheck="false" placeholder='[{"ean":"5420068698523","articleNo":"23-289","brand":"Nexen","size":"225/45 R18 95V","locations":[{"site":"Friesoythe","code":"K59","level":3,"quantity":8,"available":6}]}]'></textarea>
-            <button id="importTires" class="primary wide">Artikel importieren</button><p id="tireImportMessage" class="message" role="status"></p>
+            <h2>Reifenartikel anlegen</h2><p class="muted">Artikel, Bestand und ersten Lagerplatz direkt eingeben.</p>
+            <form id="tireAdminForm" class="admin-form">
+              <div class="form-grid">
+                <label>Artikelnummer<input id="tireArticleNo" maxlength="40" required></label>
+                <label>EAN<input id="tireEan" inputmode="numeric" maxlength="14" required></label>
+                <label>Marke<input id="tireBrand" maxlength="80" required></label>
+                <label>Größe<input id="tireSize" maxlength="80" required placeholder="225/45 R18 95V"></label>
+                <label class="span-two">Modell / Bezeichnung<input id="tireModel" maxlength="160"></label>
+                <label>Standort<input id="tireSite" maxlength="40" value="Friesoythe" required></label>
+                <label>Lager<input id="tireLocation" maxlength="20" required></label>
+                <label>Ebene<input id="tireLevel" type="number" min="1" max="9" value="1" required></label>
+                <label>Physischer Bestand P<input id="tirePhysical" type="number" min="0" value="0" required></label>
+                <label>Verfügbarer Bestand V<input id="tireAvailable" type="number" min="0" value="0" required></label>
+                <label>Bestellt B<input id="tireOrdered" type="number" min="0" value="0" required></label>
+                <label>Eingetroffen T<input id="tireArrived" type="number" min="0" value="0" required></label>
+                <label>Verkäufe 12 Monate<input id="tireSales" type="number" min="0" value="0" required></label>
+                <label>Ø Bestand 12 Monate<input id="tireAverageStock" type="number" min="0" value="0" required></label>
+              </div>
+              <button class="primary wide" type="submit">Artikel speichern</button>
+            </form>
+            <p id="tireImportMessage" class="message" role="status"></p>
           </article>
         </div>
       </section>
