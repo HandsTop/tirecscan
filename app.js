@@ -13,6 +13,7 @@ const db = getFirestore(app);
 const functions = getFunctions(app, functionsRegion || "europe-west1");
 const call = {
   ensureProfile: httpsCallable(functions, "ensureProfile"),
+  getContainerBundle: httpsCallable(functions, "getContainerBundle"),
   claimContainer: httpsCallable(functions, "claimContainer"),
   confirmPick: httpsCallable(functions, "confirmPick"),
   finalizeContainer: httpsCallable(functions, "finalizeContainer"),
@@ -61,7 +62,7 @@ const TEXT = {
 };
 
 const demoMode = ["127.0.0.1","localhost"].includes(location.hostname) && new URLSearchParams(location.search).has("demo");
-const state = { lang:localStorage.getItem("tirescan.lang") || "de", user:null, profile:null, isAdmin:false, page:"containers", previousPage:"containers", searchContainer:null, container:null, items:[], selected:null, stream:null, scanTimer:null, confirmAction:null, articles:[], selectedArticle:null, detailCache:new Map(), articleStream:null, articleScanTimer:null };
+const state = { lang:localStorage.getItem("tirescan.lang") || "de", user:null, profile:null, isAdmin:false, page:"containers", previousPage:"containers", searchContainer:null, container:null, items:[], selected:null, stream:null, scanTimer:null, confirmAction:null, articles:[], selectedArticle:null, detailCache:new Map(), articleStream:null, articleScanTimer:null, pendingOperations:[], containerCache:{}, containerDraftItems:[], syncing:false };
 const t = (key) => TEXT[state.lang]?.[key] || TEXT.de[key] || key;
 const cleanId = (value) => String(value || "").trim().replace(/[^A-Za-z0-9_-]/g, "").slice(0,32);
 const cleanEan = (value) => String(value || "").replace(/\D/g, "").slice(0,14);
@@ -80,6 +81,32 @@ function replace(template,values){ return Object.entries(values).reduce((out,[ke
 function showToast(text){ const el=$("toast"); el.textContent=text; el.classList.remove("hidden"); clearTimeout(showToast.timer); showToast.timer=setTimeout(()=>el.classList.add("hidden"),2600); }
 function openDrawer(open=true){ $("drawer").classList.toggle("open",open); $("drawer").setAttribute("aria-hidden",String(!open)); $("drawerShade").classList.toggle("hidden",!open); }
 function allItemsDone(){ return state.items.length>0 && state.items.every(item=>Number(item.pickedQty||0)===Number(item.requiredQty||0)); }
+function storageKey(name){return `tirescan.${name}.${state.user?.uid||"anonymous"}`;}
+function loadDeviceState(){
+  try{state.pendingOperations=JSON.parse(localStorage.getItem(storageKey("queue"))||"[]");}catch{state.pendingOperations=[];}
+  try{state.containerCache=JSON.parse(localStorage.getItem(storageKey("containers"))||"{}");}catch{state.containerCache={};}
+  updateSyncUi();
+}
+function persistDeviceState(){localStorage.setItem(storageKey("queue"),JSON.stringify(state.pendingOperations));localStorage.setItem(storageKey("containers"),JSON.stringify(state.containerCache));updateSyncUi();}
+function enqueueOperation(type,payload){state.pendingOperations.push({id:crypto.randomUUID?.()||`${Date.now()}-${Math.random()}`,type,payload,createdAt:new Date().toISOString()});persistDeviceState();}
+function cacheContainer(container,items){state.containerCache[container.id]={container,items};persistDeviceState();}
+function updateSyncUi(){
+  const count=state.pendingOperations.length;const pending=$("syncPending");if(pending)pending.textContent=count?`${count} Änderung${count===1?"":"en"} wartet${count===1?"":"en"}`:"Keine ausstehenden Änderungen";
+  const last=$("syncLast");if(last){const value=localStorage.getItem(storageKey("lastSync"));last.textContent=value?`Letzte Synchronisierung: ${formatDate(value)}`:"Noch nicht synchronisiert";}
+  $("syncNow")?.classList.toggle("has-pending",count>0);
+}
+async function syncNow(){
+  if(state.syncing)return;state.syncing=true;const button=$("syncNow");button.disabled=true;button.querySelector("b").textContent="Synchronisiere …";
+  try{
+    if(demoMode){state.pendingOperations=[];}else{
+      while(state.pendingOperations.length){const operation=state.pendingOperations[0];if(!call[operation.type])throw new Error(`Unbekannte Aktion: ${operation.type}`);await call[operation.type](operation.payload);state.pendingOperations.shift();persistDeviceState();}
+    }
+    localStorage.setItem(storageKey("lastSync"),new Date().toISOString());state.detailCache.clear();await loadMyContainers();
+    if(state.page==="article"&&normalizeArticleSearch($("articleQuery").value))await searchArticles();
+    showToast("Synchronisierung abgeschlossen.");$("moreMenu").classList.add("hidden");
+  }catch(error){console.error(error);showToast(`Synchronisierung nicht abgeschlossen: ${displayError(error)}`);}
+  finally{state.syncing=false;button.disabled=false;button.querySelector("b").textContent="Synchronisieren";updateSyncUi();}
+}
 
 function applyLanguage(){
   document.documentElement.lang=state.lang;
@@ -98,13 +125,13 @@ function showPage(page,load=true){
   document.querySelectorAll(".page").forEach(el=>el.classList.add("hidden"));
   $((page==="work"?"work":page)+"Page")?.classList.remove("hidden");
   document.querySelectorAll(".nav-item[data-page]").forEach(el=>el.classList.toggle("active",el.dataset.page===page));
-  const titles={home:"Home",article:"Artikelsuche",articlePlaces:"Lagerplätze",articleHistory:"Historie",articleArrivals:"Zugänge",storage:"Einlagerungslisten",containers:t("picking"),myWork:t("myContainers"),settings:"Einstellungen",admin:t("administration"),work:`Container: ${state.container?.number||state.container?.id||""}`};
+  const titles={home:"Home",article:"Artikelsuche",articlePlaces:"Lagerplätze",articleHistory:"Historie",articleArrivals:"Zugänge",storage:"Einlagerungslisten",containers:t("picking"),settings:"Einstellungen",admin:t("administration"),work:`Container: ${state.container?.number||state.container?.id||""}`};
   $("pageTitle").textContent=titles[page] || "TireScan";
   const detailPage=page==="work"||page.startsWith("articleP")||page==="articleHistory"||page==="articleArrivals";
   $("menuButton").classList.toggle("hidden",detailPage);
   $("backButton").classList.toggle("hidden",!detailPage);
   openDrawer(false);
-  if(load && page==="myWork") loadMyContainers();
+  if(load && page==="containers") loadMyContainers();
   if(load && page==="admin") loadUsers();
 }
 
@@ -126,6 +153,7 @@ async function hydrateSession(user){
     if(!state.profile?.active && !state.isAdmin){ $("loginView").classList.add("hidden"); $("app").classList.add("hidden"); $("pendingView").classList.remove("hidden"); return; }
     const displayName=state.profile?.displayName || user.email;
     $("identity").textContent=displayName; $("drawerUser").textContent=user.email; $("adminNav").classList.toggle("hidden",!state.isAdmin);
+    loadDeviceState();
     $("loginView").classList.add("hidden"); $("pendingView").classList.add("hidden"); $("app").classList.remove("hidden"); showPage("containers");
   }catch(error){ console.error(error); setMessage($("loginMessage"),displayError(error)); await signOut(auth); }
 }
@@ -142,7 +170,7 @@ async function findContainer(){
   try{
     const snap=await getContainer(id);
     if(!snap.exists()){ setMessage($("containerMessage"),t("notFound")); return; }
-    state.searchContainer={id:snap.id,...snap.data()}; $("containerNumber").value=state.searchContainer.number||state.searchContainer.id; renderSearchResult();
+    state.searchContainer=state.containerCache[snap.id]?.container||{id:snap.id,...snap.data()}; $("containerNumber").value=state.searchContainer.number||state.searchContainer.id; renderSearchResult();
   }catch(error){ console.error(error); setMessage($("containerMessage"),displayError(error)); }
 }
 
@@ -176,7 +204,10 @@ async function confirmSearchedContainer(){
   const c=state.searchContainer; if(!c)return;
   if($("confirmContainer").dataset.action==="open"){ await openContainer(c.id); return; }
   askConfirm(replace(t("confirmContainer"),{id:c.number||c.id}),async()=>{
-    try{ await call.claimContainer({containerId:c.id}); await openContainer(c.id); }
+    try{
+      const bundle=await fetchContainerBundle(c.id);const now=new Date().toISOString();bundle.container={...bundle.container,assignedTo:state.user.uid,assignedName:state.profile?.displayName||state.user.email,status:"active",claimedAt:bundle.container.claimedAt||now,updatedAt:now};
+      cacheContainer(bundle.container,bundle.items);enqueueOperation("claimContainer",{containerId:c.id});await openContainer(c.id);
+    }
     catch(error){ console.error(error); setMessage($("containerMessage"),displayError(error)); }
   });
 }
@@ -184,8 +215,9 @@ async function confirmSearchedContainer(){
 async function loadMyContainers(){
   const target=$("myContainers"); target.replaceChildren();
   try{
-    const snap=await getDocs(query(collection(db,"containers"),where("assignedTo","==",state.user.uid)));
-    const list=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.updatedAt?.seconds||0)-(a.updatedAt?.seconds||0));
+    let server=[];if(!demoMode){const snap=await getDocs(query(collection(db,"containers"),where("assignedTo","==",state.user.uid)));server=snap.docs.map(d=>({id:d.id,...d.data()}));}
+    const merged=new Map(server.map(container=>[container.id,container]));Object.values(state.containerCache).forEach(bundle=>merged.set(bundle.container.id,bundle.container));
+    const list=[...merged.values()].filter(container=>container.status!=="completed").sort((a,b)=>(dateFromValue(b.updatedAt)?.valueOf()||0)-(dateFromValue(a.updatedAt)?.valueOf()||0));
     if(!list.length) target.append(node("p","muted",t("notFound")));
     list.forEach(c=>{
       const card=node("button","my-container-card");
@@ -196,19 +228,23 @@ async function loadMyContainers(){
   }catch(error){ console.error(error); target.append(node("p","message",displayError(error))); }
 }
 
+async function fetchContainerBundle(containerId){
+  if(state.containerCache[containerId])return state.containerCache[containerId];
+  if(demoMode)return {container:state.container,items:state.items};
+  const response=await call.getContainerBundle({containerId});return response.data;
+}
 async function openContainer(containerId){
   try{
-    const cSnap=await getDoc(doc(db,"containers",containerId)); if(!cSnap.exists())throw new Error(t("notFound"));
-    const itemsSnap=await getDocs(collection(db,"containers",containerId,"items"));
-    state.container={id:cSnap.id,...cSnap.data()};
-    state.items=itemsSnap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.sequence||0)-(b.sequence||0)||String(a.location||"").localeCompare(String(b.location||"")));
+    const bundle=await fetchContainerBundle(containerId);if(!bundle?.container)throw new Error(t("notFound"));
+    state.container={...bundle.container};state.items=(bundle.items||[]).map(item=>({...item})).sort((a,b)=>(a.sequence||0)-(b.sequence||0)||String(a.location||"").localeCompare(String(b.location||"")));
+    cacheContainer(state.container,state.items);
     renderWork(); showPage("work",false);
   }catch(error){ console.error(error); showToast(displayError(error)); }
 }
 
 function renderWork(){
   const c=state.container; if(!c)return;
-  $("pageTitle").textContent=`Container: ${c.number||c.id}`;
+  if(state.page==="work")$("pageTitle").textContent=`Container: ${c.number||c.id}`;
   const overview=$("workOverview"); overview.replaceChildren();
   const owner=node("div","work-owner"); owner.append(node("b",null,c.assignedName||"—"),node("span",null,`${t("picked")}: ${c.pickedQty||0} / ${c.totalQty||0}`)); overview.append(owner);
   const list=$("itemsList"); list.replaceChildren();
@@ -267,10 +303,14 @@ async function searchArticles(){
     let articles;
     if(demoMode)articles=DEMO_ARTICLES.filter(article=>articleMatches(article,raw,warehouseMode));
     else { const response=await call.searchArticles({query:raw,warehouseMode}); articles=response.data?.articles||[]; }
-    state.articles=articles;setMessage($("articleMessage"),"");renderArticleResults();
+    state.articles=applyPendingArticleChanges(articles);setMessage($("articleMessage"),"");renderArticleResults();
   }catch(error){console.error(error);setMessage($("articleMessage"),displayError(error));}
   finally{searchButton.disabled=false;}
 }
+function applyLocationToArticle(article,payload){
+  const locations=(article.locations||[]).map(place=>({...place}));const index=locations.findIndex(place=>place.code===payload.originalCode&&(!payload.originalSite||place.site===payload.originalSite));const value={site:payload.site,code:payload.code,level:payload.level,quantity:payload.quantity,available:payload.available};if(index>=0)locations[index]=value;else locations.push(value);return {...article,locations,physical:locations.reduce((sum,item)=>sum+Number(item.quantity||0),0),available:locations.reduce((sum,item)=>sum+Number(item.available??item.quantity??0),0)};
+}
+function applyPendingArticleChanges(articles){return articles.map(article=>state.pendingOperations.filter(operation=>operation.type==="saveTireLocation"&&operation.payload.ean===article.ean).reduce((value,operation)=>applyLocationToArticle(value,operation.payload),article));}
 function renderArticleResults(){
   const target=$("articleResults"); target.replaceChildren();
   if(!state.articles.length){target.append(node("p","muted","Keine Artikel gefunden."));return;}
@@ -305,6 +345,7 @@ async function getArticleDetails(article,view){
   const key=`${article.ean}:${view}`;if(state.detailCache.has(key))return state.detailCache.get(key);
   let details;if(demoMode)details={...article,...(view==="history"?{history:demoHistory[article.ean]||[]}:{arrivals:demoArrivals[article.ean]||[]})};
   else {const response=await call.getTireDetails({ean:article.ean,include:view});details=response.data;}
+  if(view==="history"&&!demoMode){const pending=state.pendingOperations.filter(operation=>operation.type==="saveTireLocation"&&operation.payload.ean===article.ean).map(operation=>({from:operation.payload.originalCode||"—",to:operation.payload.code,user:state.profile?.displayName||state.user?.email||"—",at:operation.createdAt}));details={...details,history:[...pending,...(details.history||[])]};}
   state.detailCache.set(key,details);return details;
 }
 async function openArticleDetail(article,view){
@@ -341,8 +382,9 @@ function closeLocationDialog(){$("locationModal").classList.add("hidden");}
 async function saveLocation(event){
   event.preventDefault();const payload={ean:state.selectedArticle.ean,originalCode:$("locationOriginal").value,originalSite:$("locationOriginalSite").value,site:$("locationSite").value.trim(),code:$("locationCode").value.trim().toUpperCase(),level:Number($("locationLevel").value),quantity:Number($("locationQuantity").value),available:Number($("locationAvailable").value)};
   try{
-    if(demoMode){const locations=state.selectedArticle.locations||[];const index=locations.findIndex(place=>place.code===payload.originalCode&&(!payload.originalSite||place.site===payload.originalSite));const previous=index>=0?locations[index]:null;const value={site:payload.site,code:payload.code,level:payload.level,quantity:payload.quantity,available:payload.available};if(index>=0)locations[index]=value;else locations.push(value);state.selectedArticle.physical=locations.reduce((sum,item)=>sum+item.quantity,0);state.selectedArticle.available=locations.reduce((sum,item)=>sum+item.available,0);const history=demoHistory[state.selectedArticle.ean]||(demoHistory[state.selectedArticle.ean]=[]);history.unshift({from:previous?.code||"—",to:payload.code,fromSite:previous?.site||"",toSite:payload.site,user:state.profile?.displayName||"Administrator",at:new Date().toISOString()});}
-    else {const response=await call.saveTireLocation(payload);state.selectedArticle=response.data.tire;}
+    const previous=(state.selectedArticle.locations||[]).find(place=>place.code===payload.originalCode&&(!payload.originalSite||place.site===payload.originalSite));state.selectedArticle=applyLocationToArticle(state.selectedArticle,payload);
+    if(demoMode){const history=demoHistory[state.selectedArticle.ean]||(demoHistory[state.selectedArticle.ean]=[]);history.unshift({from:previous?.code||"—",to:payload.code,user:state.profile?.displayName||"Administrator",at:new Date().toISOString()});}
+    else enqueueOperation("saveTireLocation",payload);
     const articleIndex=state.articles.findIndex(article=>article.ean===state.selectedArticle.ean);if(articleIndex>=0)state.articles[articleIndex]={...state.articles[articleIndex],...state.selectedArticle};renderArticleResults();state.detailCache.delete(`${state.selectedArticle.ean}:history`);closeLocationDialog();renderArticleDetail("places");showToast("Lagerplatz gespeichert.");
   }catch(error){console.error(error);setMessage($("locationMessage"),displayError(error));}
 }
@@ -396,17 +438,10 @@ async function savePick(quantity){
   setMessage($("scanMessage"),"");
   try{
     const selectedId=state.selected.id;
-    if(demoMode){
-      const item=state.items.find(entry=>entry.id===selectedId);
-      if(!item)throw new Error(t("notFound"));
-      item.pickedQty=Number(item.pickedQty||0)+quantity;
-      state.container.pickedQty=state.items.reduce((sum,entry)=>sum+Number(entry.pickedQty||0),0);
-      await closeScanner(); renderWork();
-      document.querySelector(`[data-item-id="${CSS.escape(selectedId)}"]`)?.scrollIntoView({behavior:"smooth",block:"center"});
-      showToast(t("saved")); return;
-    }
-    await call.confirmPick({containerId:state.container.id,itemId:selectedId,ean:cleanEan($("scannedEan").value),quantity});
-    await closeScanner(); await openContainer(state.container.id); document.querySelector(`[data-item-id="${CSS.escape(selectedId)}"]`)?.scrollIntoView({behavior:"smooth",block:"center"}); showToast(t("saved"));
+    const item=state.items.find(entry=>entry.id===selectedId);if(!item)throw new Error(t("notFound"));const scannedEan=cleanEan($("scannedEan").value);
+    item.pickedQty=Number(item.pickedQty||0)+quantity;item.status=item.pickedQty===Number(item.requiredQty||0)?"completed":"active";state.container.pickedQty=state.items.reduce((sum,entry)=>sum+Number(entry.pickedQty||0),0);state.container.updatedAt=new Date().toISOString();cacheContainer(state.container,state.items);
+    if(!demoMode)enqueueOperation("confirmPick",{containerId:state.container.id,itemId:selectedId,ean:scannedEan,quantity});
+    await closeScanner();renderWork();document.querySelector(`[data-item-id="${CSS.escape(selectedId)}"]`)?.scrollIntoView({behavior:"smooth",block:"center"});showToast(`${t("saved")} · Synchronisierung ausstehend`);
   }catch(error){ console.error(error); setMessage($("scanMessage"),displayError(error)); }
 }
 
@@ -414,8 +449,7 @@ function requestFinalize(){
   if(!allItemsDone()){ showToast(t("completeFirst")); return; }
   askConfirm(t("confirmFinish"),async()=>{
     try{
-      if(demoMode){ state.container.status="completed"; state.container.completedAt=new Date(); renderWork(); showToast(t("allDone")); return; }
-      await call.finalizeContainer({containerId:state.container.id}); await openContainer(state.container.id); showToast(t("allDone"));
+      state.container.status="completed";state.container.completedAt=new Date().toISOString();state.container.updatedAt=state.container.completedAt;cacheContainer(state.container,state.items);if(!demoMode)enqueueOperation("finalizeContainer",{containerId:state.container.id});state.searchContainer=null;showPage("containers");showToast(`${t("allDone")} · Synchronisierung ausstehend`);
     }
     catch(error){ console.error(error); showToast(displayError(error)); }
   });
@@ -423,6 +457,7 @@ function requestFinalize(){
 
 async function loadUsers(){
   if(!state.isAdmin)return; const target=$("usersList"); target.replaceChildren();
+  if(demoMode){const card=node("div","user-card");const info=node("div");info.append(node("b",null,"ANDREJS"),node("p",null,"demo@local · admin"));card.append(info);target.append(card);return;}
   try{
     const snap=await getDocs(collection(db,"users"));
     snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(a.email||"").localeCompare(String(b.email||""))).forEach(user=>{
@@ -433,8 +468,14 @@ async function loadUsers(){
 }
 async function editUser(user,active){ const displayName=active?(prompt("Name:",user.displayName||"")||"").trim():user.displayName; if(active&&!displayName)return; try{await call.setUserAccess({uid:user.id,active,displayName,role:user.role==="admin"?"admin":"worker"});await loadUsers();}catch(error){alert(displayError(error));} }
 async function editUserName(user){const displayName=(prompt("Name des Mitarbeiters:",user.displayName||"")||"").trim();if(!displayName)return;try{await call.setUserAccess({uid:user.id,active:user.active===true,displayName,role:user.role==="admin"?"admin":"worker"});await loadUsers();showToast("Name gespeichert.");}catch(error){alert(displayError(error));}}
-async function importContainer(){ setMessage($("adminMessage"),""); try{const payload=JSON.parse($("containerJson").value);const total=(payload.items||[]).reduce((sum,item)=>sum+Number(item.requiredQty||0),0);if(total>70)throw new Error(t("max70"));await call.importContainer(payload);setMessage($("adminMessage"),t("imported"),true);$("containerJson").value="";}catch(error){console.error(error);setMessage($("adminMessage"),displayError(error));} }
-async function importTires(){setMessage($("tireImportMessage"),"");try{const payload=JSON.parse($("tireJson").value);const response=await call.importTires({tires:Array.isArray(payload)?payload:[payload]});setMessage($("tireImportMessage"),`${response.data.count} Artikel importiert.`,true);$("tireJson").value="";}catch(error){console.error(error);setMessage($("tireImportMessage"),displayError(error));}}
+function addContainerDraftItem(){
+  setMessage($("adminMessage"),"");const item={id:String(state.containerDraftItems.length+1),sequence:state.containerDraftItems.length+1,articleNo:$("itemArticleNo").value.trim(),ean:cleanEan($("itemEan").value),brand:$("itemBrand").value.trim(),size:$("itemSize").value.trim(),description:$("itemModel").value.trim(),location:$("itemLocation").value.trim().toUpperCase(),level:$("itemLevel").value,requiredQty:Number($("itemQuantity").value)};
+  if(!item.articleNo||item.ean.length<8||!item.brand||!item.size||!item.location||!Number.isInteger(item.requiredQty)||item.requiredQty<1){setMessage($("adminMessage"),"Bitte alle Daten der Position korrekt ausfüllen.");return;}
+  const total=state.containerDraftItems.reduce((sum,value)=>sum+value.requiredQty,0)+item.requiredQty;if(total>70){setMessage($("adminMessage"),t("max70"));return;}state.containerDraftItems.push(item);["itemArticleNo","itemEan","itemBrand","itemSize","itemModel","itemLocation"].forEach(id=>$(id).value="");$("itemLevel").value="1";$("itemQuantity").value="1";renderContainerDraft();
+}
+function renderContainerDraft(){const target=$("containerDraftList");target.replaceChildren();state.containerDraftItems.forEach((item,index)=>{const row=node("div","draft-row");const text=node("span");text.append(node("b",null,`${item.articleNo} · ${item.brand}`),node("small",null,`${item.size} · ${item.location}/${item.level} · ${item.requiredQty} St.`));const remove=node("button","icon-flat","✕");remove.type="button";remove.addEventListener("click",()=>{state.containerDraftItems.splice(index,1);state.containerDraftItems.forEach((value,i)=>{value.id=String(i+1);value.sequence=i+1;});renderContainerDraft();});row.append(text,remove);target.append(row);});}
+function saveContainerForm(event){event.preventDefault();setMessage($("adminMessage"),"");try{const number=cleanId($("containerAdminNumber").value);if(!number||!state.containerDraftItems.length)throw new Error("Containernummer und mindestens eine Position sind erforderlich.");const payload={number,orderNumber:$("containerOrder").value.trim(),items:state.containerDraftItems.map(item=>({...item}))};enqueueOperation("importContainer",payload);state.containerDraftItems=[];event.target.reset();renderContainerDraft();setMessage($("adminMessage"),"Container gespeichert. Bitte synchronisieren.",true);}catch(error){setMessage($("adminMessage"),displayError(error));}}
+function saveTireForm(event){event.preventDefault();setMessage($("tireImportMessage"),"");try{const physical=Number($("tirePhysical").value),available=Number($("tireAvailable").value);if(available>physical)throw new Error("Verfügbarer Bestand darf nicht größer als P sein.");const tire={ean:cleanEan($("tireEan").value),articleNo:$("tireArticleNo").value.trim(),brand:$("tireBrand").value.trim(),size:$("tireSize").value.trim(),description:$("tireModel").value.trim(),ordered:Number($("tireOrdered").value),arrivedPending:Number($("tireArrived").value),sales12Months:Number($("tireSales").value),averageStock12Months:Number($("tireAverageStock").value),locations:[{site:$("tireSite").value.trim(),code:$("tireLocation").value.trim().toUpperCase(),level:Number($("tireLevel").value),quantity:physical,available}]};if(tire.ean.length<8||!tire.articleNo||!tire.brand||!tire.size||!tire.locations[0].code)throw new Error("Bitte alle Pflichtfelder korrekt ausfüllen.");enqueueOperation("importTires",{tires:[tire]});event.target.reset();$("tireSite").value="Friesoythe";$("tireLevel").value="1";["tirePhysical","tireAvailable","tireOrdered","tireArrived","tireSales","tireAverageStock"].forEach(id=>$(id).value="0");setMessage($("tireImportMessage"),"Artikel gespeichert. Bitte synchronisieren.",true);}catch(error){setMessage($("tireImportMessage"),displayError(error));}}
 
 $("loginForm").addEventListener("submit",login); $("pendingLogout").addEventListener("click",()=>signOut(auth)); $("logoutButton").addEventListener("click",()=>signOut(auth));
 $("menuButton").addEventListener("click",()=>openDrawer(true)); $("drawerShade").addEventListener("click",()=>openDrawer(false)); $("backButton").addEventListener("click",()=>showPage(state.page.startsWith("article")?"article":"containers",false));
@@ -444,22 +485,22 @@ $("findContainer").addEventListener("click",findContainer); $("containerNumber")
 $("confirmContainer").addEventListener("click",confirmSearchedContainer); $("refreshMine").addEventListener("click",loadMyContainers); $("finishContainer").addEventListener("click",requestFinalize);
 $("scannedEan").addEventListener("input",validateEan); $("startCamera").addEventListener("click",startCamera); $("closeScanner").addEventListener("click",closeScanner); $("pickForm").addEventListener("submit",submitPick);
 $("confirmNo").addEventListener("click",closeConfirm); $("confirmYes").addEventListener("click",async()=>{const action=state.confirmAction;closeConfirm();if(action)await action();});
-$("loadUsers").addEventListener("click",loadUsers); $("importContainer").addEventListener("click",importContainer);$("importTires").addEventListener("click",importTires);
+$("loadUsers").addEventListener("click",loadUsers);$("addContainerItem").addEventListener("click",addContainerDraftItem);$("containerAdminForm").addEventListener("submit",saveContainerForm);$("tireAdminForm").addEventListener("submit",saveTireForm);
 $("articleSearchForm").addEventListener("submit",event=>{event.preventDefault();searchArticles();});
 $("warehouseMode").addEventListener("change",()=>{$("articleQuery").placeholder=$("warehouseMode").checked?"Lagerplatz, z. B. K59":"225/45 R18 V Nexen";$("articleSearchHint").textContent=$("warehouseMode").checked?"Alle Reifen an einem Lagerplatz anzeigen":"Größe, Marke, Artikelnummer oder EAN eingeben";});
 $("scanArticle").addEventListener("click",openArticleScanner);$("closeArticleScanner").addEventListener("click",closeArticleScanner);$("useArticleEan").addEventListener("click",useArticleEan);$("articleEanInput").addEventListener("keydown",event=>{if(event.key==="Enter")useArticleEan();});
 $("addLocation").addEventListener("click",()=>openLocationDialog());$("cancelLocation").addEventListener("click",closeLocationDialog);$("locationForm").addEventListener("submit",saveLocation);
 $("closeSiteStock").addEventListener("click",closeSiteStock);$("siteStockModal").addEventListener("click",event=>{if(event.target===$("siteStockModal"))closeSiteStock();});
-$("messageButton").addEventListener("click",()=>showToast("Keine neuen Nachrichten")); $("moreButton").addEventListener("click",()=>showToast(state.profile?.displayName||state.user?.email||"TireScan"));
+$("messageButton").addEventListener("click",()=>showToast("Keine neuen Nachrichten"));$("moreButton").addEventListener("click",event=>{event.stopPropagation();$("moreMenu").classList.toggle("hidden");updateSyncUi();});$("syncNow").addEventListener("click",syncNow);document.addEventListener("click",event=>{if(!$("moreMenu").contains(event.target)&&event.target!==$("moreButton"))$("moreMenu").classList.add("hidden");});
 if(demoMode){
-  state.user={uid:"demo"}; state.profile={displayName:"ANDREJS",active:true};state.isAdmin=true; state.container={id:"23620",number:"23620",assignedTo:"demo",assignedName:"ANDREJS",status:"active",totalQty:12,pickedQty:8};
+  state.user={uid:"demo"}; state.profile={displayName:"ANDREJS",active:true};state.isAdmin=true;loadDeviceState(); state.container={id:"23620",number:"23620",assignedTo:"demo",assignedName:"ANDREJS",status:"active",itemCount:4,totalQty:12,pickedQty:8};
   state.items=[
     {id:"1",sequence:10,brand:"GOODYEAR",description:"265/60 R 18 110T Wran +",articleNo:"90-1282",ean:"4038526482914",location:"8469",level:"1",requiredQty:4,pickedQty:4},
     {id:"2",sequence:77,brand:"Maxxis",description:"185 R 14 104/102N CR967",articleNo:"60-90",ean:"4717784243535",location:"9521",level:"1",requiredQty:2,pickedQty:1},
     {id:"3",sequence:252,brand:"Kumho",description:"205/55 R 16 91H ES31",articleNo:"29-1450",ean:"8808956238469",location:"9223",level:"1",requiredQty:4,pickedQty:3},
     {id:"4",sequence:107,brand:"PIRELLI",description:"255/45 R 19 104V WSZ3 MO",articleNo:"237-551",ean:"8019227409284",location:"9601",level:"1",requiredQty:2,pickedQty:0}
   ];
-  $("loginView").classList.add("hidden"); $("app").classList.remove("hidden"); $("drawerUser").textContent="demo@local"; $("identity").textContent="ANDREJS"; renderWork(); showPage("work",false);
+  cacheContainer(state.container,state.items);$("loginView").classList.add("hidden"); $("app").classList.remove("hidden");$("adminNav").classList.remove("hidden"); $("drawerUser").textContent="demo@local"; $("identity").textContent="ANDREJS";showPage("containers");
 }else{
   onAuthStateChanged(auth,hydrateSession);
 }
