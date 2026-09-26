@@ -216,20 +216,21 @@ exports.getTireDetails = callable.onCall(async (data, context) => {
 });
 
 exports.saveTireLocation = callable.onCall(async (data, context) => {
-  const profile = await activeProfile(context); if (!isAdmin(context)) fail("permission-denied", "Nur Administratoren dürfen Bestände ändern."); const tireEan = ean(data?.ean); const site = text(data?.site, 40); const code = text(data?.code, 20).toUpperCase(); const originalCode = text(data?.originalCode, 20).toUpperCase(); const originalSite = text(data?.originalSite, 40);
-  if (!site) fail("invalid-argument", "Standort ist erforderlich.");
-  if (!/^[A-Z0-9_-]{1,20}$/.test(code)) fail("invalid-argument", "Lagerplatz ist ungültig.");
-  const level = integer(data?.level, 1, 9, "Ebene"); const quantity = integer(data?.quantity, 0, 999999, "Bestand"); const availableAtLocation = integer(data?.available, 0, quantity, "Verfügbarer Bestand"); const ref = db.doc(`tires/${tireEan}`); let result;
+  const profile = await activeProfile(context); if (!isAdmin(context)) fail("permission-denied", "Nur Administratoren dürfen Bestände ändern."); const tireEan = ean(data?.ean); const remove = data?.remove === true; const site = text(data?.site, 40); const code = text(data?.code, 20).toUpperCase(); const originalCode = text(data?.originalCode, 20).toUpperCase(); const originalSite = text(data?.originalSite, 40);
+  if (remove && !originalCode) fail("invalid-argument", "Zu löschender Lagerplatz fehlt.");
+  if (!remove && !site) fail("invalid-argument", "Standort ist erforderlich.");
+  if (!remove && !/^[A-Z0-9_-]{1,20}$/.test(code)) fail("invalid-argument", "Lagerplatz ist ungültig.");
+  const level = remove ? null : integer(data?.level, 1, 9, "Ebene"); const quantity = remove ? null : integer(data?.quantity, 0, 999999, "Bestand"); const availableAtLocation = remove ? null : integer(data?.available, 0, quantity, "Verfügbarer Bestand"); const ref = db.doc(`tires/${tireEan}`); let result;
   await db.runTransaction(async transaction => {
     const snap = await transaction.get(ref); if (!snap.exists) fail("not-found", "Artikel nicht gefunden."); const tire = snap.data(); const locations = Array.isArray(tire.locations) ? tire.locations.slice(0, 20).map(place => ({site:text(place.site||"Friesoythe",40),code:text(place.code,20).toUpperCase(),level:Number(place.level||1),quantity:Number(place.quantity||0),available:Number(place.available??place.quantity??0)})) : [];
-    const existingIndex = originalCode ? locations.findIndex(place => place.code === originalCode && (!originalSite || place.site === originalSite)) : -1; const duplicateIndex = locations.findIndex(place => place.code === code && place.site === site);
-    if (duplicateIndex >= 0 && duplicateIndex !== existingIndex) fail("already-exists", "Dieser Lagerplatz ist bereits vorhanden.");
+    const existingIndex = originalCode ? locations.findIndex(place => place.code === originalCode && (!originalSite || place.site === originalSite)) : -1; if (remove && existingIndex < 0) fail("not-found", "Lagerplatz nicht gefunden."); const duplicateIndex = remove ? -1 : locations.findIndex(place => place.code === code && place.site === site);
+    if (!remove && duplicateIndex >= 0 && duplicateIndex !== existingIndex) fail("already-exists", "Dieser Lagerplatz ist bereits vorhanden.");
     const previous = existingIndex >= 0 ? locations[existingIndex] : null;
-    const location = { site, code, level, quantity, available:availableAtLocation }; if (existingIndex >= 0) locations[existingIndex] = location; else { if (locations.length >= 20) fail("resource-exhausted", "Maximal 20 Lagerplätze pro Artikel."); locations.push(location); }
+    if (remove) locations.splice(existingIndex, 1); else { const location = { site, code, level, quantity, available:availableAtLocation }; if (existingIndex >= 0) locations[existingIndex] = location; else { if (locations.length >= 20) fail("resource-exhausted", "Maximal 20 Lagerplätze pro Artikel."); locations.push(location); } }
     const physical = locations.reduce((sum, place) => sum + place.quantity, 0); const available = locations.reduce((sum, place) => sum + place.available, 0);
     transaction.update(ref, { locations, physical, available, updatedAt:FieldValue.serverTimestamp(), updatedBy:profile.uid });
-    transaction.set(ref.collection("history").doc(), { from:previous?.code || "—", to:code, fromSite:previous?.site || "", toSite:site, user:profile.displayName || profile.email || profile.uid, actorUid:profile.uid, createdAt:FieldValue.serverTimestamp() });
-    await writeAudit(transaction, originalCode ? "tire.location.update" : "tire.location.add", profile, { ean:tireEan, originalCode, originalSite, site, code, level, quantity, available:availableAtLocation }); result=tirePublic(tireEan,{...tire,locations,physical,available});
+    transaction.set(ref.collection("history").doc(), { from:previous?.code || "—", to:remove ? "—" : code, fromSite:previous?.site || "", toSite:remove ? "" : site, user:profile.displayName || profile.email || profile.uid, actorUid:profile.uid, createdAt:FieldValue.serverTimestamp() });
+    await writeAudit(transaction, remove ? "tire.location.delete" : originalCode ? "tire.location.update" : "tire.location.add", profile, { ean:tireEan, originalCode, originalSite, remove, site, code, level, quantity, available:availableAtLocation }); result=tirePublic(tireEan,{...tire,locations,physical,available});
   });
   tireSearchCache.expiresAt = 0;
   return { ok:true, tire:result };
