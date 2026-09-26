@@ -29,6 +29,7 @@ const call = {
 const TEXT = {
   de: {
     secureLogin:"Sichere Anmeldung für Lagermitarbeiter", login:"Anmelden", logout:"Abmelden", waiting:"Konto wartet auf Freigabe", askAdmin:"Ein Administrator muss dieses Konto aktivieren.",
+    home:"Home", articleSearch:"Artikelsuche", storageLists:"Einlagerungslisten", settings:"Einstellungen", activeContainers:"Aktive Container",
     picking:"Kommissionierung", myContainers:"Meine Container", administration:"Verwaltung", language:"Sprache", containerNumber:"Containernummer", continueWork:"Aktive und zuletzt bearbeitete Aufträge",
     userAccess:"Benutzerzugang", userAccessHint:"Konten aktivieren und Anzeigenamen vergeben.", reload:"Neu laden", importContainer:"Container importieren", importHint:"JSON mit Container und Positionen einfügen. Bestehende Container werden nicht überschrieben.", import:"Importieren",
     notFound:"Container nicht gefunden.", invalidContainer:"Bitte eine gültige Containernummer eingeben.", loadFailed:"Daten konnten nicht geladen werden.", loginFailed:"Anmeldung fehlgeschlagen. Zugangsdaten prüfen.",
@@ -36,10 +37,16 @@ const TEXT = {
     scan:"SCAN", commissioned:"Kommissioniert", cancel:"ABBRECHEN", done:"ERLEDIGT", wrongEan:"Falscher Reifen – EAN stimmt nicht.", correctEan:"EAN bestätigt.", cameraUnavailable:"Kamera/Barcode-Erkennung ist nicht verfügbar. EAN kann manuell eingegeben werden.",
     confirmContainer:"Bist Du sicher, dass die Container Nummer {id} korrekt ist?", confirmFinish:"Soll die Liste als 'bestätigt' markiert werden?", partial:"Es wurde eine geringere Anzahl kommissioniert als vorgesehen. Trotzdem bestätigen?",
     assignedOther:"Container ist bereits {name} zugewiesen.", saved:"Position bestätigt.", allDone:"Container vollständig kommissioniert.", completeFirst:"Bitte zuerst alle Positionen vollständig kommissionieren.", noItems:"Keine Positionen vorhanden.",
-    positions:"Positionen", articleCount:"Artikelanzahl", picked:"Kommissioniert", created:"Erstellt", started:"gestartet", finished:"fertiggestellt", warehouse:"Lager", level:"Ebene", quantity:"Anzahl", locationButton:"LAGERPLÄTZE"
+    positions:"Positionen", articleCount:"Artikelanzahl", picked:"Kommissioniert", created:"Erstellt", started:"gestartet", finished:"fertiggestellt", warehouse:"Lager", level:"Ebene", quantity:"Anzahl", locationButton:"LAGERPLÄTZE",
+    articleSearchHint:"Größe, Marke, Artikelnummer oder EAN eingeben", warehouseSearchHint:"Lagerplatz eingeben", searching:"Suche …", noArticles:"Keine Artikel gefunden.",
+    history:"HISTORIE", arrivals:"ZUGÄNGE", salesPeriod:"12 Monate", averageStock:"ø-Best.", physicalStock:"Physischer Lagerbestand:", availableStock:"Verfügbarer Bestand:", add:"HINZUFÜGEN",
+    user:"Benutzer", date:"Datum", time:"Uhrzeit", noHistory:"Noch keine Bewegungen.", noArrivals:"Noch keine Zugänge.", total:"Gesamt", synchronize:"Synchronisieren", syncing:"Synchronisiere …", syncDone:"Synchronisierung abgeschlossen.", syncFailed:"Synchronisierung nicht abgeschlossen", historyLoading:"Historie wird geladen …", arrivalsLoading:"Zugänge werden geladen …", arrival:"Zugang", oldStock:"alt", newStock:"neu", yes:"JA", no:"NEIN", scanEan:"EAN scannen", search:"SUCHEN", storagePlace:"Lagerplatz", print:"Drucken", editStoragePlace:"Lagerplatz bearbeiten", adminStockOnly:"Nur Administratoren dürfen Bestände ändern.", storagePlaceSaved:"Lagerplatz gespeichert.",
+    createContainer:"Container anlegen", createContainerHint:"Nur Artikelnummer und Menge eingeben. Reifendaten und Lagerplatz werden automatisch aus dem Katalog übernommen.", orderReference:"Auftrag / Referenz", newPosition:"Neue Position", articleNumber:"Artikelnummer", addPosition:"Position hinzufügen", bulkPositions:"Mehrere Positionen aus Excel / CSV hinzufügen", bulkPositionsHint:"Zwei Spalten einfügen: Artikelnummer und Anzahl. Eine Überschrift ist optional.", validateAdd:"Liste prüfen und hinzufügen", saveContainer:"Container speichern",
+    createTire:"Reifenartikel anlegen", createTireHint:"Artikel, Bestand und ersten Lagerplatz direkt eingeben.", brand:"Marke", size:"Größe", model:"Modell / Bezeichnung", site:"Standort", physicalP:"Physischer Bestand P", availableV:"Verfügbarer Bestand V", orderedB:"Bestellt B", arrivedT:"Eingetroffen T", sales12:"Verkäufe 12 Monate", average12:"Ø Bestand 12 Monate", saveArticle:"Artikel speichern", catalogImport:"Kompletten Reifenkatalog importieren", catalogImportHint:"CSV/TSV aus Excel laden oder unten einfügen. Auch große Listen werden in Paketen synchronisiert.", validateCatalog:"Katalog prüfen und vormerken"
   },
   ru: {
     secureLogin:"Безопасный вход для сотрудников склада", login:"Войти", logout:"Выйти", waiting:"Учётная запись ожидает активации", askAdmin:"Администратор должен активировать эту учётную запись.",
+    home:"Главная", articleSearch:"Поиск шин", storageLists:"Списки размещения", settings:"Настройки", activeContainers:"Активные контейнеры",
     picking:"Комплектация", myContainers:"Мои контейнеры", administration:"Управление", language:"Язык", containerNumber:"Номер контейнера", continueWork:"Активные и последние задания",
     userAccess:"Доступ пользователей", userAccessHint:"Активируйте аккаунты и задайте имена.", reload:"Обновить", importContainer:"Импорт контейнера", importHint:"Вставьте JSON контейнера и позиций.", import:"Импортировать",
     notFound:"Контейнер не найден.", invalidContainer:"Введите корректный номер контейнера.", loadFailed:"Не удалось загрузить данные.", loginFailed:"Не удалось войти. Проверьте данные.",
@@ -47,23 +54,35 @@ const TEXT = {
     scan:"СКАН", commissioned:"Собрано", cancel:"ОТМЕНА", done:"ГОТОВО", wrongEan:"Неверная шина — EAN не совпадает.", correctEan:"EAN подтверждён.", cameraUnavailable:"Камера недоступна. EAN можно ввести вручную.",
     confirmContainer:"Вы уверены, что номер контейнера {id} правильный?", confirmFinish:"Отметить список как подтверждённый?", partial:"Собрано меньше запланированного. Всё равно подтвердить?",
     assignedOther:"Контейнер уже назначен сотруднику {name}.", saved:"Позиция подтверждена.", allDone:"Контейнер полностью собран.", completeFirst:"Сначала полностью соберите все позиции.", noItems:"Нет позиций.",
-    positions:"Позиции", articleCount:"Количество", picked:"Собрано", created:"Создан", started:"начат", finished:"завершён", warehouse:"Склад", level:"Уровень", quantity:"Количество", locationButton:"МЕСТА"
+    positions:"Позиции", articleCount:"Количество", picked:"Собрано", created:"Создан", started:"начат", finished:"завершён", warehouse:"Лагер", level:"Уровень", quantity:"Количество", locationButton:"МЕСТА ХРАНЕНИЯ",
+    articleSearchHint:"Введите размер, марку, артикул или EAN", warehouseSearchHint:"Введите место хранения", searching:"Поиск …", noArticles:"Шины не найдены.",
+    history:"ИСТОРИЯ", arrivals:"ПОСТУПЛЕНИЯ", salesPeriod:"12 месяцев", averageStock:"ср. запас", physicalStock:"Физический запас:", availableStock:"Доступный запас:", add:"ДОБАВИТЬ",
+    user:"Пользователь", date:"Дата", time:"Время", noHistory:"Перемещений пока нет.", noArrivals:"Поступлений пока нет.", total:"Всего", synchronize:"Синхронизировать", syncing:"Синхронизация …", syncDone:"Синхронизация завершена.", syncFailed:"Синхронизация не завершена", historyLoading:"История загружается …", arrivalsLoading:"Поступления загружаются …", arrival:"Поступление", oldStock:"было", newStock:"стало", yes:"ДА", no:"НЕТ", scanEan:"Сканировать EAN", search:"НАЙТИ", storagePlace:"Место хранения", print:"Печать", editStoragePlace:"Изменить место хранения", adminStockOnly:"Изменять остатки может только администратор.", storagePlaceSaved:"Место хранения сохранено.",
+    createContainer:"Создать контейнер", createContainerHint:"Введите только артикул и количество. Данные шины и место хранения подставятся из каталога.", orderReference:"Заказ / ссылка", newPosition:"Новая позиция", articleNumber:"Артикул", addPosition:"Добавить позицию", bulkPositions:"Добавить несколько позиций из Excel / CSV", bulkPositionsHint:"Вставьте два столбца: артикул и количество. Заголовок необязателен.", validateAdd:"Проверить и добавить список", saveContainer:"Сохранить контейнер",
+    createTire:"Добавить шину", createTireHint:"Введите данные шины, запас и первое место хранения.", brand:"Марка", size:"Размер", model:"Модель / описание", site:"Локация", physicalP:"Физический запас P", availableV:"Доступный запас V", orderedB:"Заказано B", arrivedT:"Прибыло T", sales12:"Продажи за 12 месяцев", average12:"Средний запас за 12 месяцев", saveArticle:"Сохранить шину", catalogImport:"Импорт всего каталога шин", catalogImportHint:"Загрузите CSV/TSV из Excel или вставьте данные ниже. Большие списки синхронизируются пакетами.", validateCatalog:"Проверить и подготовить каталог"
   },
-  lv: {
-    secureLogin:"Droša noliktavas darbinieku pieteikšanās", login:"Pieteikties", logout:"Izrakstīties", waiting:"Konts gaida apstiprinājumu", askAdmin:"Administratoram jāaktivizē šis konts.",
-    picking:"Komplektēšana", myContainers:"Mani konteineri", administration:"Pārvaldība", language:"Valoda", containerNumber:"Konteinera numurs", continueWork:"Aktīvie un pēdējie uzdevumi",
-    userAccess:"Lietotāju piekļuve", userAccessHint:"Aktivizēt kontus un piešķirt vārdus.", reload:"Atjaunot", importContainer:"Importēt konteineru", importHint:"Ievietojiet konteinera JSON.", import:"Importēt",
-    notFound:"Konteiners nav atrasts.", invalidContainer:"Ievadiet derīgu konteinera numuru.", loadFailed:"Neizdevās ielādēt datus.", loginFailed:"Pieteikšanās neizdevās.",
-    activate:"Aktivizēt", deactivate:"Bloķēt", imported:"Konteiners importēts.", max70:"Konteinerā drīkst būt ne vairāk kā 70 riepas.", demoModule:"Šis modulis ir sagatavots nākamajam posmam.",
-    scan:"SKENĒT", commissioned:"Sakomplektēts", cancel:"ATCELT", done:"GATAVS", wrongEan:"Nepareiza riepa — EAN nesakrīt.", correctEan:"EAN apstiprināts.", cameraUnavailable:"Kamera nav pieejama. EAN var ievadīt manuāli.",
-    confirmContainer:"Vai konteinera numurs {id} ir pareizs?", confirmFinish:"Atzīmēt sarakstu kā apstiprinātu?", partial:"Sakomplektēts mazāk nekā paredzēts. Tomēr apstiprināt?",
-    assignedOther:"Konteiners jau piešķirts {name}.", saved:"Pozīcija apstiprināta.", allDone:"Konteiners pilnībā sakomplektēts.", completeFirst:"Vispirms pabeidziet visas pozīcijas.", noItems:"Nav pozīciju.",
-    positions:"Pozīcijas", articleCount:"Daudzums", picked:"Sakomplektēts", created:"Izveidots", started:"sākts", finished:"pabeigts", warehouse:"Noliktava", level:"Līmenis", quantity:"Daudzums", locationButton:"VIETAS"
+  en: {
+    secureLogin:"Secure sign-in for warehouse staff", login:"Sign in", logout:"Sign out", waiting:"Account awaiting approval", askAdmin:"An administrator must activate this account.",
+    home:"Home", articleSearch:"Tire search", storageLists:"Storage lists", settings:"Settings", activeContainers:"Active containers",
+    picking:"Order picking", myContainers:"My containers", administration:"Administration", language:"Language", containerNumber:"Container number", continueWork:"Active and recently processed jobs",
+    userAccess:"User access", userAccessHint:"Activate accounts and assign display names.", reload:"Reload", importContainer:"Import container", importHint:"Paste container and item JSON.", import:"Import",
+    notFound:"Container not found.", invalidContainer:"Enter a valid container number.", loadFailed:"Data could not be loaded.", loginFailed:"Sign-in failed. Check your credentials.",
+    activate:"Activate", deactivate:"Block", imported:"Container imported.", max70:"A container may contain no more than 70 tires.", demoModule:"This module is prepared for the next development stage.",
+    scan:"SCAN", commissioned:"Picked", cancel:"CANCEL", done:"DONE", wrongEan:"Wrong tire — EAN does not match.", correctEan:"EAN confirmed.", cameraUnavailable:"Camera/barcode recognition is unavailable. Enter the EAN manually.",
+    confirmContainer:"Are you sure container number {id} is correct?", confirmFinish:"Mark this list as confirmed?", partial:"Fewer tires were picked than required. Confirm anyway?",
+    assignedOther:"Container is already assigned to {name}.", saved:"Item confirmed.", allDone:"Container picking completed.", completeFirst:"Complete all items first.", noItems:"No items available.",
+    positions:"Items", articleCount:"Tire count", picked:"Picked", created:"Created", started:"started", finished:"completed", warehouse:"Location", level:"Level", quantity:"Quantity", locationButton:"STORAGE PLACES",
+    articleSearchHint:"Enter size, brand, article number or EAN", warehouseSearchHint:"Enter a storage place", searching:"Searching …", noArticles:"No tires found.",
+    history:"HISTORY", arrivals:"ARRIVALS", salesPeriod:"12 months", averageStock:"avg. stock", physicalStock:"Physical stock:", availableStock:"Available stock:", add:"ADD",
+    user:"User", date:"Date", time:"Time", noHistory:"No movements yet.", noArrivals:"No arrivals yet.", total:"Total", synchronize:"Synchronize", syncing:"Synchronizing …", syncDone:"Synchronization completed.", syncFailed:"Synchronization was not completed", historyLoading:"Loading history …", arrivalsLoading:"Loading arrivals …", arrival:"Arrival", oldStock:"old", newStock:"new", yes:"YES", no:"NO", scanEan:"Scan EAN", search:"SEARCH", storagePlace:"Storage place", print:"Print", editStoragePlace:"Edit storage place", adminStockOnly:"Only administrators may change stock.", storagePlaceSaved:"Storage place saved.",
+    createContainer:"Create container", createContainerHint:"Enter only the article number and quantity. Tire data and storage place are filled from the catalog.", orderReference:"Order / reference", newPosition:"New item", articleNumber:"Article number", addPosition:"Add item", bulkPositions:"Add multiple items from Excel / CSV", bulkPositionsHint:"Paste two columns: article number and quantity. The header is optional.", validateAdd:"Validate and add list", saveContainer:"Save container",
+    createTire:"Create tire article", createTireHint:"Enter the tire, stock and first storage place.", brand:"Brand", size:"Size", model:"Model / description", site:"Site", physicalP:"Physical stock P", availableV:"Available stock V", orderedB:"Ordered B", arrivedT:"Arrived T", sales12:"Sales in 12 months", average12:"Average stock in 12 months", saveArticle:"Save article", catalogImport:"Import complete tire catalog", catalogImportHint:"Upload a CSV/TSV from Excel or paste it below. Large lists are synchronized in batches.", validateCatalog:"Validate and prepare catalog"
   }
 };
 
 const demoMode = ["127.0.0.1","localhost"].includes(location.hostname) && new URLSearchParams(location.search).has("demo");
-const state = { lang:localStorage.getItem("tirescan.lang") || "de", user:null, profile:null, isAdmin:false, page:"containers", previousPage:"containers", searchContainer:null, container:null, items:[], selected:null, stream:null, scanTimer:null, confirmAction:null, articles:[], selectedArticle:null, detailCache:new Map(), articleStream:null, articleScanTimer:null, pendingOperations:[], containerCache:{}, containerDraftItems:[], syncing:false };
+const savedLanguage=localStorage.getItem("tirescan.lang");
+const state = { lang:savedLanguage==="lv"?"en":(TEXT[savedLanguage]?savedLanguage:"de"), user:null, profile:null, isAdmin:false, page:"containers", previousPage:"containers", searchContainer:null, container:null, items:[], selected:null, stream:null, scanTimer:null, confirmAction:null, articles:[], selectedArticle:null, detailCache:new Map(), articleStream:null, articleScanTimer:null, pendingOperations:[], containerCache:{}, containerDraftItems:[], syncing:false };
 const t = (key) => TEXT[state.lang]?.[key] || TEXT.de[key] || key;
 const cleanId = (value) => String(value || "").trim().replace(/[^A-Za-z0-9_-]/g, "").slice(0,32);
 const cleanEan = (value) => String(value || "").replace(/\D/g, "").slice(0,14);
@@ -92,27 +111,31 @@ function persistDeviceState(){localStorage.setItem(storageKey("queue"),JSON.stri
 function enqueueOperation(type,payload){state.pendingOperations.push({id:crypto.randomUUID?.()||`${Date.now()}-${Math.random()}`,type,payload,createdAt:new Date().toISOString()});persistDeviceState();}
 function cacheContainer(container,items){state.containerCache[container.id]={container,items};persistDeviceState();}
 function updateSyncUi(){
-  const count=state.pendingOperations.length;const pending=$("syncPending");if(pending)pending.textContent=count?`${count} Änderung${count===1?"":"en"} wartet${count===1?"":"en"}`:"Keine ausstehenden Änderungen";
-  const last=$("syncLast");if(last){const value=localStorage.getItem(storageKey("lastSync"));last.textContent=value?`Letzte Synchronisierung: ${formatDate(value)}`:"Noch nicht synchronisiert";}
+  const count=state.pendingOperations.length;const pending=$("syncPending");if(pending)pending.textContent=count?`${count} ${state.lang==="de"?(count===1?"Änderung wartet":"Änderungen warten"):state.lang==="ru"?(count===1?"изменение ожидает":"изменений ожидают"):(count===1?"change pending":"changes pending")}`:(state.lang==="de"?"Keine ausstehenden Änderungen":state.lang==="ru"?"Нет ожидающих изменений":"No pending changes");
+  const last=$("syncLast");if(last){const value=localStorage.getItem(storageKey("lastSync"));last.textContent=value?`${state.lang==="de"?"Letzte Synchronisierung":state.lang==="ru"?"Последняя синхронизация":"Last synchronization"}: ${formatDate(value)}`:(state.lang==="de"?"Noch nicht synchronisiert":state.lang==="ru"?"Синхронизации ещё не было":"Not synchronized yet");}
+  const syncLabel=$("syncNow")?.querySelector("b");if(syncLabel&&!state.syncing)syncLabel.textContent=t("synchronize");
   $("syncNow")?.classList.toggle("has-pending",count>0);
 }
 async function syncNow(){
-  if(state.syncing)return;state.syncing=true;const button=$("syncNow");button.disabled=true;button.querySelector("b").textContent="Synchronisiere …";
+  if(state.syncing)return;state.syncing=true;const button=$("syncNow");button.disabled=true;button.querySelector("b").textContent=t("syncing");
   try{
     if(demoMode){state.pendingOperations=[];}else{
       while(state.pendingOperations.length){const operation=state.pendingOperations[0];if(!call[operation.type])throw new Error(`Unbekannte Aktion: ${operation.type}`);await call[operation.type](operation.payload);state.pendingOperations.shift();persistDeviceState();}
     }
     localStorage.setItem(storageKey("lastSync"),new Date().toISOString());state.detailCache.clear();await loadMyContainers();
     if(state.page==="article"&&normalizeArticleSearch($("articleQuery").value))await searchArticles();
-    showToast("Synchronisierung abgeschlossen.");$("moreMenu").classList.add("hidden");
-  }catch(error){console.error(error);showToast(`Synchronisierung nicht abgeschlossen: ${displayError(error)}`);}
-  finally{state.syncing=false;button.disabled=false;button.querySelector("b").textContent="Synchronisieren";updateSyncUi();}
+    showToast(t("syncDone"));$("moreMenu").classList.add("hidden");
+  }catch(error){console.error(error);showToast(`${t("syncFailed")}: ${displayError(error)}`);}
+  finally{state.syncing=false;button.disabled=false;button.querySelector("b").textContent=t("synchronize");updateSyncUi();}
 }
 
 function applyLanguage(){
   document.documentElement.lang=state.lang;
   document.querySelectorAll("[data-i18n]").forEach(el=>{ el.textContent=t(el.dataset.i18n); });
   $("language").value=state.lang;
+  if($("articleQuery"))$("articleQuery").placeholder=$("warehouseMode")?.checked?t("warehouseSearchHint"):t("articleSearchHint");
+  if($("articleSearchHint"))$("articleSearchHint").textContent=$("warehouseMode")?.checked?t("warehouseSearchHint"):t("articleSearchHint");
+  updateSyncUi();
   showPage(state.page,false);
   if(state.searchContainer) renderSearchResult();
   if(state.container) renderWork();
@@ -126,7 +149,7 @@ function showPage(page,load=true){
   document.querySelectorAll(".page").forEach(el=>el.classList.add("hidden"));
   $((page==="work"?"work":page)+"Page")?.classList.remove("hidden");
   document.querySelectorAll(".nav-item[data-page]").forEach(el=>el.classList.toggle("active",el.dataset.page===page));
-  const titles={home:"Home",article:"Artikelsuche",articlePlaces:"Lagerplätze",articleHistory:"Historie",articleArrivals:"Zugänge",storage:"Einlagerungslisten",containers:t("picking"),settings:"Einstellungen",admin:t("administration"),work:`Container: ${state.container?.number||state.container?.id||""}`};
+  const titles={home:t("home"),article:t("articleSearch"),articlePlaces:t("locationButton"),articleHistory:t("history"),articleArrivals:t("arrivals"),storage:t("storageLists"),containers:t("picking"),settings:t("settings"),admin:t("administration"),work:`Container: ${state.container?.number||state.container?.id||""}`};
   $("pageTitle").textContent=titles[page] || "TireScan";
   const detailPage=page==="work"||page.startsWith("articleP")||page==="articleHistory"||page==="articleArrivals";
   $("menuButton").classList.toggle("hidden",detailPage);
@@ -271,9 +294,9 @@ function renderItem(item){
 function metric(label,value){ const el=node("div","metric"); el.append(node("b",null,`${label}:`),node("span",null,String(value))); return el; }
 
 const DEMO_ARTICLES=[
-  {ean:"5420068698523",articleNo:"23-289",brand:"Nexen",size:"225/45 R18 95V",description:"N'Fera Sport SU2",physical:18,available:14,ordered:8,arrivedPending:2,turnover:72,locations:[{site:"Friesoythe",code:"WX14",level:1,quantity:10,available:8},{site:"Thüle",code:"K59",level:3,quantity:8,available:6}]},
-  {ean:"4019238065916",articleNo:"132-777",brand:"Continental",size:"225/45 R17 91Y",description:"UltraContact",physical:9,available:7,ordered:4,arrivedPending:0,turnover:58,locations:[{code:"WT15",level:1,quantity:9}]},
-  {ean:"8808956238469",articleNo:"29-1450",brand:"Kumho",size:"205/55 R16 91H",description:"Ecsta HS52",physical:14,available:14,ordered:20,arrivedPending:4,turnover:43,locations:[{code:"9963",level:1,quantity:14}]},
+  {ean:"5420068698523",articleNo:"23-289",brand:"Nexen",size:"225/45 R18 95V",description:"N'Fera Sport SU2",physical:18,available:14,ordered:8,arrivedPending:2,sales12Months:60,averageStock12Months:100,salesRatio:0.6,locations:[{site:"Friesoythe",code:"WX14",level:1,quantity:10,available:8},{site:"Thüle",code:"K59",level:3,quantity:8,available:6}]},
+  {ean:"4019238065916",articleNo:"132-777",brand:"Continental",size:"225/45 R17 91Y",description:"UltraContact",physical:9,available:7,ordered:4,arrivedPending:0,sales12Months:155,averageStock12Months:31,salesRatio:5,locations:[{site:"Markhausen",code:"WT15",level:1,quantity:9,available:7}]},
+  {ean:"8808956238469",articleNo:"29-1450",brand:"Kumho",size:"205/55 R16 91H",description:"Ecsta HS52",physical:14,available:14,ordered:20,arrivedPending:4,sales12Months:56,averageStock12Months:31,salesRatio:1.8,locations:[{site:"Friesoythe",code:"9963",level:1,quantity:14}]},
   {ean:"4038526482914",articleNo:"90-1282",brand:"GOODYEAR",size:"265/60 R18 110T",description:"UltraGrip Performance+",physical:6,available:4,ordered:12,arrivedPending:0,turnover:66,locations:[{code:"8469",level:2,quantity:6}]},
   {ean:"4717784243535",articleNo:"60-90",brand:"Maxxis",size:"185 R14 104/102N",description:"CR967",physical:22,available:16,ordered:0,arrivedPending:5,turnover:31,locations:[{code:"9521",level:1,quantity:12},{code:"WW18",level:4,quantity:10}]}
 ];
@@ -298,8 +321,8 @@ function articleMatches(article,raw,warehouseMode=false){
 }
 async function searchArticles(){
   const raw=$("articleQuery").value.trim(); const warehouseMode=$("warehouseMode").checked; setMessage($("articleMessage"),""); $("articleResults").replaceChildren();
-  if(!normalizeArticleSearch(raw)){state.articles=[];setMessage($("articleMessage"),warehouseMode?"Lagerplatz eingeben.":"Größe, Marke, Artikelnummer oder EAN eingeben.");return;}
-  const searchButton=$("searchArticles");searchButton.disabled=true;setMessage($("articleMessage"),"Suche …",true);
+  if(!normalizeArticleSearch(raw)){state.articles=[];setMessage($("articleMessage"),warehouseMode?t("warehouseSearchHint"):t("articleSearchHint"));return;}
+  const searchButton=$("searchArticles");searchButton.disabled=true;setMessage($("articleMessage"),t("searching"),true);
   try{
     let articles;
     if(demoMode)articles=DEMO_ARTICLES.filter(article=>articleMatches(article,raw,warehouseMode));
@@ -314,23 +337,23 @@ function applyLocationToArticle(article,payload){
 function applyPendingArticleChanges(articles){return articles.map(article=>state.pendingOperations.filter(operation=>operation.type==="saveTireLocation"&&operation.payload.ean===article.ean).reduce((value,operation)=>applyLocationToArticle(value,operation.payload),article));}
 function renderArticleResults(){
   const target=$("articleResults"); target.replaceChildren();
-  if(!state.articles.length){target.append(node("p","muted","Keine Artikel gefunden."));return;}
+  if(!state.articles.length){target.append(node("p","muted",t("noArticles")));return;}
   state.articles.forEach(article=>target.append(renderTireCard(article)));
 }
 function renderTireCard(article){
   const card=node("article","tire-card");
   const head=node("div","tire-card-head"); head.append(node("strong",null,article.brand||"—"),node("b",null,article.articleNo||"—"));
   const sub=node("div","tire-card-sub"); sub.append(node("span",null,`${article.size||""} ${article.description||""}`.trim()));
-  const turnoverValue=Math.max(0,Math.min(100,Number(article.turnover||0)));const salesRatio=Number.isFinite(Number(article.salesRatio))?Number(article.salesRatio):turnoverValue/100;const rating=turnoverValue<25?"Schwach":turnoverValue<50?"Mittel":turnoverValue<75?"Gut":"Sehr gut";const turnover=node("div","turnover");turnover.title=`Verkaufsbewertung: ${rating}`;const bar=node("span");bar.style.width=`${turnoverValue}%`;const turnoverText=node("small",null,`${salesRatio.toLocaleString(state.lang,{minimumFractionDigits:1,maximumFractionDigits:1})} · ${rating}  (12 Monate, ø-Best. ${Math.round(Number(article.averageStock12Months??article.physical??0))})`);turnover.append(bar,turnoverText);
-  const locations=article.locations||[];const sites=[...new Set(locations.map(place=>String(place.site||"Friesoythe").trim().toUpperCase()).filter(Boolean))];const multiSite=sites.length>=2;const warehouseQuery=normalizeArticleSearch($("articleQuery").value);const first=($("warehouseMode").checked?locations.find(place=>normalizeArticleSearch(place.code).includes(warehouseQuery)):null)||locations[0]||{};
+  const salesRatio=Number.isFinite(Number(article.salesRatio))?Math.max(0,Number(article.salesRatio)):Math.max(0,Number(article.turnover||0))/20;const turnoverValue=Math.max(0,Math.min(100,salesRatio*20));const turnover=node("div","turnover");turnover.title=`${salesRatio.toLocaleString(state.lang,{minimumFractionDigits:1,maximumFractionDigits:1})} / 5`;const bar=node("span");bar.style.setProperty("--rating-width",`${turnoverValue}%`);const turnoverText=node("small",null,`${salesRatio.toLocaleString(state.lang,{minimumFractionDigits:1,maximumFractionDigits:1})}  (${t("salesPeriod")}, ${t("averageStock")} ${Math.round(Number(article.averageStock12Months??article.physical??0))})`);turnover.append(bar,turnoverText);
+  const locations=article.locations||[];const sites=[...new Set(locations.map(place=>String(place.site||"Friesoythe").trim().toUpperCase()).filter(Boolean))];const multiSite=sites.length>=2;const markhausen=sites.includes("MARKHAUSEN");const warehouseQuery=normalizeArticleSearch($("articleQuery").value);const first=($("warehouseMode").checked?locations.find(place=>normalizeArticleSearch(place.code).includes(warehouseQuery)):null)||locations[0]||{};
   const inventory=node("div","inventory-grid");
-  const stockColumn=node("div","inventory-column");[["P",article.physical],["V",article.available]].forEach(([key,value])=>{const item=node("div","stock-code");const amount=node(multiSite?"button":"span",multiSite?"stock-link multi-site":Number(value)<1?"low":null,String(value??0));if(multiSite){amount.type="button";amount.title="Bestand nach Standort anzeigen";amount.addEventListener("click",()=>openSiteStock(article));}item.append(node("b",null,key),amount);stockColumn.append(item);});
+  const stockColumn=node("div","inventory-column");[["P",article.physical],["V",article.available]].forEach(([key,value])=>{const className=[multiSite?"stock-link multi-site":"",markhausen?"markhausen-stock":"",Number(value)<1?"low":""].filter(Boolean).join(" ");const item=node("div","stock-code");const amount=node(multiSite?"button":"span",className||null,String(value??0));if(multiSite){amount.type="button";amount.title=t("total");amount.addEventListener("click",()=>openSiteStock(article));}item.append(node("b",null,key),amount);stockColumn.append(item);});
   const pendingColumn=node("div","inventory-column");[["T",article.arrivedPending],["B",article.ordered]].forEach(([key,value])=>{const item=node("div","stock-code");item.append(node("b",null,key),node("span",Number(value)<1?"empty":null,String(value??0)));pendingColumn.append(item);});
-  const detailColumn=node("div","inventory-column inventory-details");detailColumn.append(node("b",null,"DOT"),node("span",null,`Lager  ${first.code||"—"}`));
-  const level=node("div","inventory-level");level.append(node("b",null,"Ebene"),node("span",null,String(first.level||"—")));
-  const print=node("button","print-button");print.type="button";print.setAttribute("aria-label","Artikel drucken");print.title="Drucken";print.addEventListener("click",()=>window.print());
+  const detailColumn=node("div","inventory-column inventory-details");detailColumn.append(node("b",null,"DOT"),node("span",null,`${t("warehouse")}  ${first.code||"—"}`));
+  const level=node("div","inventory-level");level.append(node("b",null,t("level")),node("span",null,String(first.level||"—")));
+  const print=node("button","print-button");print.type="button";print.setAttribute("aria-label",t("print"));print.title=t("print");print.addEventListener("click",()=>window.print());
   inventory.append(stockColumn,pendingColumn,detailColumn,level,print);
-  const actions=node("div","tire-actions"); [["LAGERPLÄTZE","places"],["HISTORIE","history"],["ZUGÄNGE","arrivals"]].forEach(([label,view])=>{const button=node("button",view==="places"&&multiSite?"multi-site-button":null,label);button.type="button";button.addEventListener("click",()=>openArticleDetail(article,view));actions.append(button);});
+  const actions=node("div","tire-actions"); [[t("locationButton"),"places"],[t("history"),"history"],[t("arrivals"),"arrivals"]].forEach(([label,view])=>{const button=node("button",view==="places"&&multiSite?"multi-site-button":null,label);button.type="button";button.addEventListener("click",()=>openArticleDetail(article,view));actions.append(button);});
   card.append(head,sub,turnover,inventory,actions);return card;
 }
 function articleHeader(article){const header=node("div","article-detail-header");const top=node("div");top.append(node("strong",null,article.brand||"—"),node("b",null,article.articleNo||"—"));header.append(top,node("p",null,`${article.size||""} ${article.description||""}`.trim()));return header;}
@@ -359,26 +382,26 @@ function renderArticleDetail(view,loading=false){
   const article=state.selectedArticle;if(!article)return;
   if(view==="places"){
     $("placesArticleHeader").replaceChildren(articleHeader(article));
-    const summary=$("placesSummary");summary.replaceChildren();const physical=node("div");physical.append(node("span",null,"Physischer Lagerbestand:"),node("b",null,String(article.physical??0)));const available=node("div");available.append(node("span",null,"Verfügbarer Bestand:"),node("b",null,String(article.available??0)));summary.append(physical,available);$("addLocation").classList.toggle("hidden",!state.isAdmin);renderLocations();
+    const summary=$("placesSummary");summary.replaceChildren();const physical=node("div");physical.append(node("span",null,t("physicalStock")),node("b",null,String(article.physical??0)));const available=node("div");available.append(node("span",null,t("availableStock")),node("b",null,String(article.available??0)));summary.append(physical,available);$("addLocation").textContent=t("add");$("addLocation").classList.toggle("hidden",!state.isAdmin);renderLocations();
   }else if(view==="history"){
     $("historyArticleHeader").replaceChildren(articleHeader(article));const target=$("articleHistory");target.replaceChildren();
-    const header=node("div","history-row header");["Lager","Benutzer","Datum","Uhrzeit"].forEach(value=>header.append(node("span",null,value)));target.append(header);
-    if(loading){target.append(node("p","muted","Historie wird geladen …"));return;}
-    const entries=article.history||[];if(!entries.length)target.append(node("p","muted","Noch keine Bewegungen."));
+    const header=node("div","history-row header");[t("warehouse"),t("user"),t("date"),t("time")].forEach(value=>header.append(node("span",null,value)));target.append(header);
+    if(loading){target.append(node("p","muted",t("historyLoading")));return;}
+    const entries=article.history||[];if(!entries.length)target.append(node("p","muted",t("noHistory")));
     entries.forEach(entry=>{const date=dateFromValue(entry.at);const row=node("div","history-row");[`${entry.from||"—"} → ${entry.to||"—"}`,entry.user||"—",date?date.toLocaleDateString(state.lang):"—",date?date.toLocaleTimeString(state.lang,{hour:"2-digit",minute:"2-digit"}):"—"].forEach(value=>row.append(node("span",null,value)));target.append(row);});
   }else{
     $("arrivalsArticleHeader").replaceChildren(articleHeader(article));const target=$("articleArrivals");target.replaceChildren();
-    if(loading){target.append(node("p","muted","Zugänge werden geladen …"));return;}
-    const entries=article.arrivals||[];if(!entries.length)target.append(node("p","muted","Noch keine Zugänge."));
-    entries.forEach(entry=>{const date=dateFromValue(entry.date);const card=node("article","arrival-card");const head=node("div","arrival-head");head.append(node("span",null,entry.supplier||"—"),node("span",null,date?date.toLocaleDateString(state.lang):"—"));const values=node("div","arrival-values");[["Zugang",entry.quantity],["alt",entry.old],["neu",entry.new]].forEach(([label,value])=>{const field=node("span");field.append(node("small",null,label),node("b",null,String(value??0)));values.append(field);});card.append(head,values);target.append(card);});
+    if(loading){target.append(node("p","muted",t("arrivalsLoading")));return;}
+    const entries=article.arrivals||[];if(!entries.length)target.append(node("p","muted",t("noArrivals")));
+    entries.forEach(entry=>{const date=dateFromValue(entry.date);const card=node("article","arrival-card");const head=node("div","arrival-head");head.append(node("span",null,entry.supplier||"—"),node("span",null,date?date.toLocaleDateString(state.lang):"—"));const values=node("div","arrival-values");[[t("arrival"),entry.quantity],[t("oldStock"),entry.old],[t("newStock"),entry.new]].forEach(([label,value])=>{const field=node("span");field.append(node("small",null,label),node("b",null,String(value??0)));values.append(field);});card.append(head,values);target.append(card);});
   }
 }
 function renderLocations(){
   const target=$("articleLocations");target.replaceChildren();const locations=state.selectedArticle?.locations||[];
   const totals=node("section","site-totals");const grouped=new Map();locations.forEach(place=>{const name=place.site||"Friesoythe";const current=grouped.get(name)||{physical:0,available:0};current.physical+=Number(place.quantity||0);current.available+=Number(place.available??place.quantity??0);grouped.set(name,current);});grouped.forEach((value,name)=>{const column=node("div","site-total");column.append(node("strong",null,name),node("span",null,`P  ${value.physical}`),node("span",null,`V  ${value.available}`));totals.append(column);});if(grouped.size)target.append(totals);
-  const grid=node("section","location-grid");locations.forEach((place,index)=>{const record=node("article","location-record");const top=node("div","location-record-top");top.append(node("strong",null,`LP ${index+1}`),node("small",null,place.site||"Friesoythe"));if(state.isAdmin){const edit=node("button","icon-flat","✎");edit.type="button";edit.setAttribute("aria-label","Lagerplatz bearbeiten");edit.addEventListener("click",()=>openLocationDialog(place));top.append(edit);}const stack=node("div","level-stack");[5,4,3,2,1].forEach(level=>{const row=node("div",`level-row${Number(place.level)===level?" active":""}`,String(level));if(Number(place.level)===level)row.append(node("b",null,place.code));stack.append(row);});record.append(top,stack);grid.append(record);});target.append(grid);
+  const grid=node("section","location-grid");locations.forEach((place,index)=>{const record=node("article","location-record");const top=node("div","location-record-top");top.append(node("strong",null,`LP ${index+1}`),node("small",null,place.site||"Friesoythe"));if(state.isAdmin){const edit=node("button","icon-flat","✎");edit.type="button";edit.setAttribute("aria-label",t("editStoragePlace"));edit.addEventListener("click",()=>openLocationDialog(place));top.append(edit);}const stack=node("div","level-stack");[5,4,3,2,1].forEach(level=>{const row=node("div",`level-row${Number(place.level)===level?" active":""}`,String(level));if(Number(place.level)===level)row.append(node("b",null,place.code));stack.append(row);});record.append(top,stack);grid.append(record);});target.append(grid);
 }
-function openLocationDialog(place=null){if(!state.isAdmin){showToast("Nur Administratoren dürfen Bestände ändern.");return;}$("locationOriginal").value=place?.code||"";$("locationOriginalSite").value=place?.site||"";$("locationSite").value=place?.site||"Friesoythe";$("locationCode").value=place?.code||"";$("locationLevel").value=String(place?.level||1);$("locationQuantity").value=String(place?.quantity||0);$("locationAvailable").value=String(place?.available??place?.quantity??0);setMessage($("locationMessage"),"");$("locationModal").classList.remove("hidden");}
+function openLocationDialog(place=null){if(!state.isAdmin){showToast(t("adminStockOnly"));return;}$("locationOriginal").value=place?.code||"";$("locationOriginalSite").value=place?.site||"";$("locationSite").value=place?.site||"Friesoythe";$("locationCode").value=place?.code||"";$("locationLevel").value=String(place?.level||1);$("locationQuantity").value=String(place?.quantity||0);$("locationAvailable").value=String(place?.available??place?.quantity??0);setMessage($("locationMessage"),"");$("locationModal").classList.remove("hidden");}
 function closeLocationDialog(){$("locationModal").classList.add("hidden");}
 async function saveLocation(event){
   event.preventDefault();const payload={ean:state.selectedArticle.ean,originalCode:$("locationOriginal").value,originalSite:$("locationOriginalSite").value,site:$("locationSite").value.trim(),code:$("locationCode").value.trim().toUpperCase(),level:Number($("locationLevel").value),quantity:Number($("locationQuantity").value),available:Number($("locationAvailable").value)};
@@ -386,7 +409,7 @@ async function saveLocation(event){
     const previous=(state.selectedArticle.locations||[]).find(place=>place.code===payload.originalCode&&(!payload.originalSite||place.site===payload.originalSite));state.selectedArticle=applyLocationToArticle(state.selectedArticle,payload);
     if(demoMode){const history=demoHistory[state.selectedArticle.ean]||(demoHistory[state.selectedArticle.ean]=[]);history.unshift({from:previous?.code||"—",to:payload.code,user:state.profile?.displayName||"Administrator",at:new Date().toISOString()});}
     else enqueueOperation("saveTireLocation",payload);
-    const articleIndex=state.articles.findIndex(article=>article.ean===state.selectedArticle.ean);if(articleIndex>=0)state.articles[articleIndex]={...state.articles[articleIndex],...state.selectedArticle};renderArticleResults();state.detailCache.delete(`${state.selectedArticle.ean}:history`);closeLocationDialog();renderArticleDetail("places");showToast("Lagerplatz gespeichert.");
+    const articleIndex=state.articles.findIndex(article=>article.ean===state.selectedArticle.ean);if(articleIndex>=0)state.articles[articleIndex]={...state.articles[articleIndex],...state.selectedArticle};renderArticleResults();state.detailCache.delete(`${state.selectedArticle.ean}:history`);closeLocationDialog();renderArticleDetail("places");showToast(t("storagePlaceSaved"));
   }catch(error){console.error(error);setMessage($("locationMessage"),displayError(error));}
 }
 async function openArticleScanner(){
@@ -530,7 +553,7 @@ $("scannedEan").addEventListener("input",validateEan); $("startCamera").addEvent
 $("confirmNo").addEventListener("click",closeConfirm); $("confirmYes").addEventListener("click",async()=>{const action=state.confirmAction;closeConfirm();if(action)await action();});
 $("loadUsers").addEventListener("click",loadUsers);$("addContainerItem").addEventListener("click",addContainerDraftItem);$("addContainerBulk").addEventListener("click",addContainerBulk);$("containerAdminForm").addEventListener("submit",saveContainerForm);$("tireAdminForm").addEventListener("submit",saveTireForm);$("catalogBulkFile").addEventListener("change",loadCatalogFile);$("importCatalogBulk").addEventListener("click",importCatalogBulk);
 $("articleSearchForm").addEventListener("submit",event=>{event.preventDefault();searchArticles();});
-$("warehouseMode").addEventListener("change",()=>{$("articleQuery").placeholder=$("warehouseMode").checked?"Lagerplatz, z. B. K59":"225/45 R18 V Nexen";$("articleSearchHint").textContent=$("warehouseMode").checked?"Alle Reifen an einem Lagerplatz anzeigen":"Größe, Marke, Artikelnummer oder EAN eingeben";});
+$("warehouseMode").addEventListener("change",()=>{$("articleQuery").placeholder=$("warehouseMode").checked?(state.lang==="ru"?"Место, например K59":state.lang==="en"?"Location, e.g. K59":"Lagerplatz, z. B. K59"):"225/45 R18 V Nexen";$("articleSearchHint").textContent=$("warehouseMode").checked?t("warehouseSearchHint"):t("articleSearchHint");});
 $("scanArticle").addEventListener("click",openArticleScanner);$("closeArticleScanner").addEventListener("click",closeArticleScanner);$("useArticleEan").addEventListener("click",useArticleEan);$("articleEanInput").addEventListener("keydown",event=>{if(event.key==="Enter")useArticleEan();});
 $("addLocation").addEventListener("click",()=>openLocationDialog());$("cancelLocation").addEventListener("click",closeLocationDialog);$("locationForm").addEventListener("submit",saveLocation);
 $("closeSiteStock").addEventListener("click",closeSiteStock);$("siteStockModal").addEventListener("click",event=>{if(event.target===$("siteStockModal"))closeSiteStock();});

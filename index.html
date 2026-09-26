@@ -58,15 +58,15 @@
         <img src="./logo.png" alt="TireScan">
         <div><b>TireScan</b><span id="drawerUser"></span><small id="identity"></small></div>
       </div>
-      <button data-page="home" class="nav-item"><span class="nav-icon">⌂</span><span>Home</span></button>
-      <button data-page="article" class="nav-item"><span class="nav-icon">⌕</span><span>Artikelsuche</span></button>
-      <button data-page="storage" class="nav-item"><span class="nav-icon">☷</span><span>Einlagerungslisten</span></button>
+      <button data-page="home" class="nav-item"><span class="nav-icon">⌂</span><span data-i18n="home">Home</span></button>
+      <button data-page="article" class="nav-item"><span class="nav-icon">⌕</span><span data-i18n="articleSearch">Artikelsuche</span></button>
+      <button data-page="storage" class="nav-item"><span class="nav-icon">☷</span><span data-i18n="storageLists">Einlagerungslisten</span></button>
       <button data-page="containers" class="nav-item active"><span class="nav-icon">▦</span><span data-i18n="picking">Kommissionierung</span></button>
-      <button data-page="settings" class="nav-item"><span class="nav-icon">⚙</span><span>Einstellungen</span></button>
+      <button data-page="settings" class="nav-item"><span class="nav-icon">⚙</span><span data-i18n="settings">Einstellungen</span></button>
       <button id="adminNav" data-page="admin" class="nav-item hidden"><span class="nav-icon">◆</span><span data-i18n="administration">Administration</span></button>
       <div class="drawer-footer">
         <label for="language" data-i18n="language">Sprache</label>
-        <select id="language"><option value="de">Deutsch</option><option value="ru">Русский</option><option value="lv">Latviešu</option></select>
+        <select id="language"><option value="de">Deutsch</option><option value="ru">Русский</option><option value="en">English</option></select>
         <button id="logoutButton" class="nav-item logout"><span class="nav-icon">⇥</span><span data-i18n="logout">Abmelden</span></button>
       </div>
     </aside>
@@ -74,12 +74,12 @@
       <section id="homePage" class="page hidden placeholder-page"><img src="./logo.png" alt="TireScan"><h1>TireScan mobile App</h1><p data-i18n="demoModule">Dieses Modul ist für die nächste Ausbaustufe vorbereitet.</p></section>
       <section id="articlePage" class="page hidden article-search-page">
         <form id="articleSearchForm" class="article-search-form" novalidate>
-          <label class="warehouse-toggle" for="warehouseMode"><input id="warehouseMode" type="checkbox"><span class="toggle-track"><span></span></span><small>Lager</small></label>
+          <label class="warehouse-toggle" for="warehouseMode"><input id="warehouseMode" type="checkbox"><span class="toggle-track"><span></span></span><small data-i18n="warehouse">Lager</small></label>
           <input id="articleQuery" autocomplete="off" maxlength="80" placeholder="225/45 R18 V Nexen" aria-label="Artikel, Größe, Marke oder EAN">
           <button id="searchArticles" class="search-button" type="submit" aria-label="Suchen">⌕</button>
           <button id="scanArticle" class="barcode-button" type="button" aria-label="EAN scannen"><span></span></button>
         </form>
-        <p id="articleSearchHint" class="search-hint">Größe, Marke, Artikelnummer oder EAN eingeben</p>
+        <p id="articleSearchHint" class="search-hint" data-i18n="articleSearchHint">Größe, Marke, Artikelnummer oder EAN eingeben</p>
         <p id="articleMessage" class="message" role="status"></p>
         <div id="articleResults" class="article-results"></div>
       </section>
@@ -97,8 +97,8 @@
         <div id="arrivalsArticleHeader"></div>
         <div id="articleArrivals" class="arrival-list"></div>
       </section>
-      <section id="storagePage" class="page hidden placeholder-page"><h1>Einlagerungslisten</h1><p data-i18n="demoModule">Dieses Modul ist für die nächste Ausbaustufe vorbereitet.</p></section>
-      <section id="settingsPage" class="page hidden placeholder-page"><h1>Einstellungen</h1><p data-i18n="demoModule">Dieses Modul ist für die nächste Ausbaustufe vorbereitet.</p></section>
+      <section id="storagePage" class="page hidden placeholder-page"><h1 data-i18n="storageLists">Einlagerungslisten</h1><p data-i18n="demoModule">Dieses Modul ist für die nächste Ausbaustufe vorbereitet.</p></section>
+      <section id="settingsPage" class="page hidden placeholder-page"><h1 data-i18n="settings">Einstellungen</h1><p data-i18n="demoModule">Dieses Modul ist für die nächste Ausbaustufe vorbereitet.</p></section>
       <section id="containersPage" class="page picking-page">
         <div class="container-search">
           <label for="containerNumber" data-i18n="containerNumber">Containernummer</label>
@@ -112,7 +112,7 @@
         <div id="containerResult"></div>
         <button id="confirmContainer" class="floating-check hidden" aria-label="Container bestätigen">✓</button>
         <section class="active-containers">
-          <div class="section-heading"><h2>Aktive Container</h2><button id="refreshMine" class="flat-button" type="button" aria-label="Aktualisieren">↻</button></div>
+          <div class="section-heading"><h2 data-i18n="activeContainers">Aktive Container</h2><button id="refreshMine" class="flat-button" type="button" aria-label="Aktualisieren">↻</button></div>
           <div id="myContainers" class="stack"></div>
         </section>
       </section>
@@ -128,57 +128,57 @@
             <button id="loadUsers" class="secondary wide" data-i18n="reload">Neu laden</button><div id="usersList" class="stack"></div>
           </article>
           <article class="panel">
-            <h2>Container anlegen</h2><p class="muted">Nur Artikelnummer und Menge eingeben. Reifendaten und Lagerplatz werden automatisch aus dem Katalog übernommen.</p>
+            <h2 data-i18n="createContainer">Container anlegen</h2><p class="muted" data-i18n="createContainerHint">Nur Artikelnummer und Menge eingeben. Reifendaten und Lagerplatz werden automatisch aus dem Katalog übernommen.</p>
             <form id="containerAdminForm" class="admin-form">
-              <label>Containernummer<input id="containerAdminNumber" maxlength="32" required></label>
-              <label>Auftrag / Referenz<input id="containerOrder" maxlength="80"></label>
-              <fieldset><legend>Neue Position</legend>
+              <label><span data-i18n="containerNumber">Containernummer</span><input id="containerAdminNumber" maxlength="32" required></label>
+              <label><span data-i18n="orderReference">Auftrag / Referenz</span><input id="containerOrder" maxlength="80"></label>
+              <fieldset><legend data-i18n="newPosition">Neue Position</legend>
                 <div class="form-grid">
-                  <label>Artikelnummer<input id="itemArticleNo" maxlength="40" autocomplete="off" placeholder="z. B. 132-777"></label>
-                  <label>Anzahl<input id="itemQuantity" type="number" min="1" max="70" value="1"></label>
+                  <label><span data-i18n="articleNumber">Artikelnummer</span><input id="itemArticleNo" maxlength="40" autocomplete="off" placeholder="z. B. 132-777"></label>
+                  <label><span data-i18n="quantity">Anzahl</span><input id="itemQuantity" type="number" min="1" max="70" value="1"></label>
                 </div>
-                <button id="addContainerItem" class="secondary wide" type="button">Position hinzufügen</button>
+                <button id="addContainerItem" class="secondary wide" type="button" data-i18n="addPosition">Position hinzufügen</button>
               </fieldset>
               <details class="bulk-box">
-                <summary>Mehrere Positionen aus Excel / CSV hinzufügen</summary>
-                <p class="muted">Zwei Spalten einfügen: <b>Artikelnummer</b> und <b>Anzahl</b>. Eine Überschrift ist optional.</p>
+                <summary data-i18n="bulkPositions">Mehrere Positionen aus Excel / CSV hinzufügen</summary>
+                <p class="muted" data-i18n="bulkPositionsHint">Zwei Spalten einfügen: Artikelnummer und Anzahl. Eine Überschrift ist optional.</p>
                 <textarea id="containerBulkText" rows="7" placeholder="Artikelnummer&#9;Anzahl&#10;132-777&#9;4&#10;29-1450&#9;2"></textarea>
-                <button id="addContainerBulk" class="secondary wide" type="button">Liste prüfen und hinzufügen</button>
+                <button id="addContainerBulk" class="secondary wide" type="button" data-i18n="validateAdd">Liste prüfen und hinzufügen</button>
               </details>
               <div id="containerDraftList" class="draft-list"></div>
-              <button class="primary wide" type="submit">Container speichern</button>
+              <button class="primary wide" type="submit" data-i18n="saveContainer">Container speichern</button>
             </form>
             <p id="adminMessage" class="message" role="status"></p>
           </article>
           <article class="panel">
-            <h2>Reifenartikel anlegen</h2><p class="muted">Artikel, Bestand und ersten Lagerplatz direkt eingeben.</p>
+            <h2 data-i18n="createTire">Reifenartikel anlegen</h2><p class="muted" data-i18n="createTireHint">Artikel, Bestand und ersten Lagerplatz direkt eingeben.</p>
             <form id="tireAdminForm" class="admin-form">
               <div class="form-grid">
-                <label>Artikelnummer<input id="tireArticleNo" maxlength="40" required></label>
+                <label><span data-i18n="articleNumber">Artikelnummer</span><input id="tireArticleNo" maxlength="40" required></label>
                 <label>EAN<input id="tireEan" inputmode="numeric" maxlength="14" required></label>
-                <label>Marke<input id="tireBrand" maxlength="80" required></label>
-                <label>Größe<input id="tireSize" maxlength="80" required placeholder="225/45 R18 95V"></label>
-                <label class="span-two">Modell / Bezeichnung<input id="tireModel" maxlength="160"></label>
-                <label>Standort<input id="tireSite" maxlength="40" value="Friesoythe" required></label>
-                <label>Lager<input id="tireLocation" maxlength="20" required></label>
-                <label>Ebene<input id="tireLevel" type="number" min="1" max="9" value="1" required></label>
-                <label>Physischer Bestand P<input id="tirePhysical" type="number" min="0" value="0" required></label>
-                <label>Verfügbarer Bestand V<input id="tireAvailable" type="number" min="0" value="0" required></label>
-                <label>Bestellt B<input id="tireOrdered" type="number" min="0" value="0" required></label>
-                <label>Eingetroffen T<input id="tireArrived" type="number" min="0" value="0" required></label>
-                <label>Verkäufe 12 Monate<input id="tireSales" type="number" min="0" value="0" required></label>
-                <label>Ø Bestand 12 Monate<input id="tireAverageStock" type="number" min="0" value="0" required></label>
+                <label><span data-i18n="brand">Marke</span><input id="tireBrand" maxlength="80" required></label>
+                <label><span data-i18n="size">Größe</span><input id="tireSize" maxlength="80" required placeholder="225/45 R18 95V"></label>
+                <label class="span-two"><span data-i18n="model">Modell / Bezeichnung</span><input id="tireModel" maxlength="160"></label>
+                <label><span data-i18n="site">Standort</span><input id="tireSite" maxlength="40" value="Friesoythe" required></label>
+                <label><span data-i18n="warehouse">Lager</span><input id="tireLocation" maxlength="20" required></label>
+                <label><span data-i18n="level">Ebene</span><input id="tireLevel" type="number" min="1" max="9" value="1" required></label>
+                <label><span data-i18n="physicalP">Physischer Bestand P</span><input id="tirePhysical" type="number" min="0" value="0" required></label>
+                <label><span data-i18n="availableV">Verfügbarer Bestand V</span><input id="tireAvailable" type="number" min="0" value="0" required></label>
+                <label><span data-i18n="orderedB">Bestellt B</span><input id="tireOrdered" type="number" min="0" value="0" required></label>
+                <label><span data-i18n="arrivedT">Eingetroffen T</span><input id="tireArrived" type="number" min="0" value="0" required></label>
+                <label><span data-i18n="sales12">Verkäufe 12 Monate</span><input id="tireSales" type="number" min="0" value="0" required></label>
+                <label><span data-i18n="average12">Ø Bestand 12 Monate</span><input id="tireAverageStock" type="number" min="0" value="0" required></label>
               </div>
-              <button class="primary wide" type="submit">Artikel speichern</button>
+              <button class="primary wide" type="submit" data-i18n="saveArticle">Artikel speichern</button>
             </form>
             <p id="tireImportMessage" class="message" role="status"></p>
             <details class="bulk-box">
-              <summary>Kompletten Reifenkatalog importieren</summary>
-              <p class="muted">CSV/TSV aus Excel laden oder unten einfügen. Auch Listen mit mehr als 1000 Artikeln werden in Paketen synchronisiert.</p>
+              <summary data-i18n="catalogImport">Kompletten Reifenkatalog importieren</summary>
+              <p class="muted" data-i18n="catalogImportHint">CSV/TSV aus Excel laden oder unten einfügen. Auch Listen mit mehr als 1000 Artikeln werden in Paketen synchronisiert.</p>
               <p class="column-help">Spalten: Artikelnummer, EAN, Marke, Größe, Modell, Standort, Lager, Ebene, P, V, B, T, Verkäufe12, ØBestand12</p>
               <input id="catalogBulkFile" type="file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values">
               <textarea id="catalogBulkText" rows="9" placeholder="Artikelnummer;EAN;Marke;Größe;Modell;Standort;Lager;Ebene;P;V;B;T;Verkäufe12;ØBestand12"></textarea>
-              <button id="importCatalogBulk" class="primary wide" type="button">Katalog prüfen und vormerken</button>
+              <button id="importCatalogBulk" class="primary wide" type="button" data-i18n="validateCatalog">Katalog prüfen und vormerken</button>
               <p id="catalogBulkMessage" class="message" role="status"></p>
             </details>
           </article>
@@ -206,14 +206,14 @@
     </div>
   </div>
   <div id="confirmModal" class="modal centered hidden" role="dialog" aria-modal="true" aria-labelledby="confirmText">
-    <div class="modal-card confirm-dialog"><p id="confirmText"></p><div class="dialog-actions"><button id="confirmNo" class="text-button">NEIN</button><button id="confirmYes" class="text-button accent">JA</button></div></div>
+    <div class="modal-card confirm-dialog"><p id="confirmText"></p><div class="dialog-actions"><button id="confirmNo" class="text-button" data-i18n="no">NEIN</button><button id="confirmYes" class="text-button accent" data-i18n="yes">JA</button></div></div>
   </div>
   <div id="articleScannerModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="articleScanTitle">
     <div class="modal-card article-scan-dialog">
-      <div class="dialog-title"><strong id="articleScanTitle">EAN scannen</strong><button id="closeArticleScanner" class="text-button" type="button">✕</button></div>
+      <div class="dialog-title"><strong id="articleScanTitle" data-i18n="scanEan">EAN scannen</strong><button id="closeArticleScanner" class="text-button" type="button">✕</button></div>
       <video id="articleCamera" playsinline muted></video>
       <label for="articleEanInput">EAN</label>
-      <div class="article-ean-entry"><span class="mini-barcode"></span><input id="articleEanInput" inputmode="numeric" autocomplete="off" maxlength="14"><button id="useArticleEan" class="primary" type="button">SUCHEN</button></div>
+      <div class="article-ean-entry"><span class="mini-barcode"></span><input id="articleEanInput" inputmode="numeric" autocomplete="off" maxlength="14"><button id="useArticleEan" class="primary" type="button" data-i18n="search">SUCHEN</button></div>
       <p id="articleScanMessage" class="message" role="status"></p>
     </div>
   </div>
@@ -221,20 +221,20 @@
     <div class="modal-card site-stock-dialog">
       <div class="dialog-title"><strong id="siteStockTitle">—</strong><div><b id="siteStockArticle">—</b><button id="closeSiteStock" class="text-button" type="button" aria-label="Schließen">✕</button></div></div>
       <p id="siteStockSubtitle" class="dialog-description"></p>
-      <div class="site-stock-total"><strong>Gesamt</strong><div id="siteStockTotals" class="site-stock-values"></div></div>
+      <div class="site-stock-total"><strong data-i18n="total">Gesamt</strong><div id="siteStockTotals" class="site-stock-values"></div></div>
       <div id="siteStockSites" class="site-stock-columns"></div>
     </div>
   </div>
   <div id="locationModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="locationTitle">
     <form id="locationForm" class="modal-card location-dialog">
-      <h2 id="locationTitle">Lagerplatz</h2>
+      <h2 id="locationTitle" data-i18n="storagePlace">Lagerplatz</h2>
       <input id="locationOriginal" type="hidden">
       <input id="locationOriginalSite" type="hidden">
-      <label for="locationSite">Standort</label><input id="locationSite" maxlength="40" autocomplete="off" placeholder="Friesoythe" required>
-      <label for="locationCode">Lager</label><input id="locationCode" maxlength="20" autocomplete="off" required>
-      <label for="locationLevel">Ebene</label><input id="locationLevel" type="number" min="1" max="9" inputmode="numeric" required>
-      <label for="locationQuantity">Physischer Bestand (P)</label><input id="locationQuantity" type="number" min="0" max="999999" inputmode="numeric" required>
-      <label for="locationAvailable">Verfügbarer Bestand (V)</label><input id="locationAvailable" type="number" min="0" max="999999" inputmode="numeric" required>
+      <label for="locationSite" data-i18n="site">Standort</label><input id="locationSite" maxlength="40" autocomplete="off" placeholder="Friesoythe" required>
+      <label for="locationCode" data-i18n="warehouse">Lager</label><input id="locationCode" maxlength="20" autocomplete="off" required>
+      <label for="locationLevel" data-i18n="level">Ebene</label><input id="locationLevel" type="number" min="1" max="9" inputmode="numeric" required>
+      <label for="locationQuantity" data-i18n="physicalP">Physischer Bestand (P)</label><input id="locationQuantity" type="number" min="0" max="999999" inputmode="numeric" required>
+      <label for="locationAvailable" data-i18n="availableV">Verfügbarer Bestand (V)</label><input id="locationAvailable" type="number" min="0" max="999999" inputmode="numeric" required>
       <p id="locationMessage" class="message" role="alert"></p>
       <div class="dialog-actions"><button id="cancelLocation" class="text-button" type="button">ABBRECHEN</button><button class="text-button accent" type="submit">SPEICHERN</button></div>
     </form>
