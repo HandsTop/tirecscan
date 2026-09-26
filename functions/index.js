@@ -32,7 +32,8 @@ const tirePublic = (id, data) => {
   const storedRating = Math.max(0, Math.min(100, Number(data.turnover || 0)));
   const sales12Months = Math.max(0, Number(data.sales12Months ?? (averageStock12Months * storedRating / 100)));
   const salesRatio = averageStock12Months > 0 ? sales12Months / averageStock12Months : 0;
-  const salesRating = data.sales12Months == null ? storedRating : Math.max(0, Math.min(100, Math.round(salesRatio * 50)));
+  // Five full stock rotations in twelve months fill the complete scale.
+  const salesRating = data.sales12Months == null ? storedRating : Math.max(0, Math.min(100, Math.round(salesRatio * 20)));
   return {
     ean: String(data.ean || id), articleNo: text(data.articleNo, 40), brand: text(data.brand, 80), size: text(data.size, 80), description: text(data.description, 160),
     physical, available: Number(data.available || 0), ordered: Number(data.ordered || 0), arrivedPending: Number(data.arrivedPending || 0), turnover: salesRating,
