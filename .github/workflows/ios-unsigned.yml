@@ -20,8 +20,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Bundle web application and update iOS project
-        run: npm run mobile:sync
+      - name: Bundle web application and create iOS project
+        run: |
+          npm run mobile:build
+          npx cap add ios --packagemanager SPM
+          cp logo.png ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
+          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'Barcode scanning requires camera access.'" ios/App/App/Info.plist
 
       - name: Build unsigned iPhone application
         run: |
