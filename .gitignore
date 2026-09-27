@@ -2,6 +2,8 @@
 firebase-debug.log
 functions/node_modules/
 node_modules/
+.tools/
+.gh-config/
 www/
 capacitor-app-entry.js
 ios/App/Pods/
