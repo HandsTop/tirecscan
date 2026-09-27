@@ -5,6 +5,7 @@ node_modules/
 .tools/
 .gh-config/
 .gh-cache/
+artifacts/
 www/
 capacitor-app-entry.js
 ios/App/Pods/
