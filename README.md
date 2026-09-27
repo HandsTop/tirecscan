@@ -1,4 +1,4 @@
-# TireScan Kommissionierung
+# Lager Scan System
 
 Mobile-first warehouse picking application for tire containers.
 
@@ -12,9 +12,23 @@ Mobile-first warehouse picking application for tire containers.
 6. Completed positions turn green; partial positions use a red outline so they cannot be overlooked.
 7. Once every position is complete, the worker explicitly confirms the whole list before the container becomes completed.
 
-The navigation and picking flow intentionally mirror the established warehouse handset workflow while retaining TireScan branding and the secured Firebase backend.
+The navigation and picking flow intentionally mirror the established warehouse handset workflow while retaining Lager Scan System branding and the secured Firebase backend.
 
-The interface defaults to German and also supports Russian and Latvian. The existing `logo.png` remains the application logo.
+The interface defaults to German and also supports Russian and English. The existing `logo.png` remains the application logo.
+
+## iOS application
+
+The `ios` folder is a Capacitor iOS application named **Lager Scan System**. The Firebase web client is bundled into the native application, so it opens from the iPhone Home Screen without Safari.
+
+```sh
+npm install
+npm run mobile:sync
+npm run mobile:open
+```
+
+The last command is only for developers who have a Mac. On Windows, push the repository to GitHub and use the included `codemagic.yaml` workflow. Connect an active Apple Developer Program account and the repository in Codemagic; the workflow builds, signs, and sends the application to TestFlight. Add both iPhone owners as TestFlight testers.
+
+After every web-code change run `npm run mobile:sync` before building the next iOS version.
 
 ## Container import format
 

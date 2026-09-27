@@ -1,6 +1,12 @@
 .firebase/
 firebase-debug.log
 functions/node_modules/
+node_modules/
+www/
+ios/App/Pods/
+ios/App/DerivedData/
+ios/App/App.xcodeproj/xcuserdata/
+ios/App/App.xcworkspace/xcuserdata/
 .npm-cache/
 .firebase-cli-config/
 *.local

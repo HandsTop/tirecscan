@@ -1,0 +1,12 @@
+{
+  "appId": "com.lagerscansystem.app",
+  "appName": "Lager Scan System",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "automatic",
+    "preferredContentMode": "mobile"
+  },
+  "server": {
+    "iosScheme": "https"
+  }
+}

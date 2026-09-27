@@ -6,10 +6,10 @@
   <meta name="theme-color" content="#36b84a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="TireScan">
+  <meta name="apple-mobile-web-app-title" content="Lager Scan System">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.cloudfunctions.net; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
-  <title>TireScan Kommissionierung</title>
+  <title>Lager Scan System</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" href="./logo.png">
   <link rel="stylesheet" href="./styles.css">
@@ -17,8 +17,8 @@
 <body>
   <section id="loginView" class="auth-view">
     <div class="auth-card">
-      <img src="./logo.png" alt="TireScan" class="auth-logo">
-      <h1>TireScan</h1>
+      <img src="./logo.png" alt="Lager Scan System" class="auth-logo">
+      <h1>Lager Scan System</h1>
       <p class="muted" data-i18n="secureLogin">Sichere Anmeldung für Lagermitarbeiter</p>
       <form id="loginForm" novalidate>
         <label for="email">E-Mail</label>
@@ -32,7 +32,7 @@
   </section>
   <section id="pendingView" class="auth-view hidden">
     <div class="auth-card">
-      <img src="./logo.png" alt="TireScan" class="auth-logo small-logo">
+      <img src="./logo.png" alt="Lager Scan System" class="auth-logo small-logo">
       <h1 data-i18n="waiting">Konto wartet auf Freigabe</h1>
       <p class="muted" data-i18n="askAdmin">Ein Administrator muss dieses Konto aktivieren.</p>
       <button id="pendingLogout" class="secondary wide" data-i18n="logout">Abmelden</button>
@@ -55,8 +55,8 @@
     <div id="drawerShade" class="drawer-shade hidden"></div>
     <aside id="drawer" class="drawer" aria-hidden="true">
       <div class="drawer-brand">
-        <img src="./logo.png" alt="TireScan">
-        <div><b>TireScan</b><span id="drawerUser"></span><small id="identity"></small></div>
+        <img src="./logo.png" alt="Lager Scan System">
+        <div><b>Lager Scan System</b><span id="drawerUser"></span><small id="identity"></small></div>
       </div>
       <button data-page="home" class="nav-item"><span class="nav-icon">⌂</span><span data-i18n="home">Home</span></button>
       <button data-page="article" class="nav-item"><span class="nav-icon">⌕</span><span data-i18n="articleSearch">Artikelsuche</span></button>
@@ -71,7 +71,7 @@
       </div>
     </aside>
     <main>
-      <section id="homePage" class="page hidden placeholder-page"><img src="./logo.png" alt="TireScan"><h1>TireScan mobile App</h1><p data-i18n="demoModule">Dieses Modul ist für die nächste Ausbaustufe vorbereitet.</p></section>
+      <section id="homePage" class="page hidden placeholder-page"><img src="./logo.png" alt="Lager Scan System"><h1>Lager Scan System</h1><p data-i18n="demoModule">Dieses Modul ist für die nächste Ausbaustufe vorbereitet.</p></section>
       <section id="articlePage" class="page hidden article-search-page">
         <form id="articleSearchForm" class="article-search-form" novalidate>
           <label class="warehouse-toggle" for="warehouseMode"><input id="warehouseMode" type="checkbox"><span class="toggle-track"><span></span></span><small data-i18n="warehouse">Lager</small></label>

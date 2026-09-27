@@ -3,7 +3,7 @@
   "firestore": { "rules": "firestore.rules" },
   "hosting": {
     "public": ".",
-    "ignore": ["firebase.json", "firestore.rules", "functions/**", "README.md", "SECURITY.md", ".git/**"],
+    "ignore": ["firebase.json", "firestore.rules", "functions/**", "README.md", "SECURITY.md", ".git/**", "node_modules/**", "www/**", "ios/**", "scripts/**", "package.json", "package-lock.json", "capacitor.config.json"],
     "headers": [
       { "source": "**", "headers": [
         { "key": "X-Content-Type-Options", "value": "nosniff" },

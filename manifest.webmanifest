@@ -1,7 +1,7 @@
 {
-  "name": "TireScan Kommissionierung",
-  "short_name": "TireScan",
-  "description": "Mobile Kommissionierung für Reifenlager",
+  "name": "Lager Scan System",
+  "short_name": "Lager Scan",
+  "description": "Lagerverwaltung, Artikelsuche und Kommissionierung für Reifenlager",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

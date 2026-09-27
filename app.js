@@ -150,7 +150,7 @@ function showPage(page,load=true){
   $((page==="work"?"work":page)+"Page")?.classList.remove("hidden");
   document.querySelectorAll(".nav-item[data-page]").forEach(el=>el.classList.toggle("active",el.dataset.page===page));
   const titles={home:t("home"),article:t("articleSearch"),articlePlaces:t("locationButton"),articleHistory:t("history"),articleArrivals:t("arrivals"),storage:t("storageLists"),containers:t("picking"),settings:t("settings"),admin:t("administration"),work:`Container: ${state.container?.number||state.container?.id||""}`};
-  $("pageTitle").textContent=titles[page] || "TireScan";
+  $("pageTitle").textContent=titles[page] || "Lager Scan System";
   const detailPage=page==="work"||page.startsWith("articleP")||page==="articleHistory"||page==="articleArrivals";
   $("menuButton").classList.toggle("hidden",detailPage);
   $("backButton").classList.toggle("hidden",!detailPage);
@@ -423,8 +423,18 @@ async function saveLocation(event){
     const articleIndex=state.articles.findIndex(article=>article.ean===state.selectedArticle.ean);if(articleIndex>=0)state.articles[articleIndex]={...state.articles[articleIndex],...state.selectedArticle};renderArticleResults();state.detailCache.delete(`${state.selectedArticle.ean}:history`);closeLocationDialog();renderArticleDetail("places");showToast(t("storagePlaceSaved"));
   }catch(error){console.error(error);setMessage($("locationMessage"),displayError(error));}
 }
+function nativeBarcodeScanner(){return window.Capacitor?.Plugins?.CapacitorBarcodeScanner||null;}
+async function scanNativeBarcode(){
+  const scanner=nativeBarcodeScanner();if(!scanner)return "";
+  const result=await scanner.scanBarcode({hint:17,cameraDirection:1,scanOrientation:3,scanInstructions:state.lang==="ru"?"Наведите камеру на штрихкод":state.lang==="en"?"Point the camera at the barcode":"Barcode mit der Kamera erfassen",scanButton:false,cancelButtonAccessibilityLabel:"Cancel"});
+  return String(result?.ScanResult||"").trim();
+}
 async function openArticleScanner(){
   $("articleEanInput").value="";setMessage($("articleScanMessage"),"");$("articleScannerModal").classList.remove("hidden");
+  if(nativeBarcodeScanner()){
+    try{const value=await scanNativeBarcode();if(value){$("articleEanInput").value=cleanEan(value);await useArticleEan();}else $("articleEanInput").focus();}catch(error){console.error(error);setMessage($("articleScanMessage"),t("cameraUnavailable"));}
+    return;
+  }
   if(!("BarcodeDetector" in window)||!navigator.mediaDevices?.getUserMedia){setMessage($("articleScanMessage"),t("cameraUnavailable"));$("articleEanInput").focus();return;}
   try{const formats=await BarcodeDetector.getSupportedFormats();const detector=new BarcodeDetector({formats:["ean_13","ean_8","upc_a","code_128"].filter(value=>formats.includes(value))});state.articleStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});const video=$("articleCamera");video.srcObject=state.articleStream;video.style.display="block";await video.play();const tick=async()=>{if(!state.articleStream)return;try{const codes=await detector.detect(video);if(codes[0]?.rawValue){$("articleEanInput").value=cleanEan(codes[0].rawValue);await useArticleEan();return;}}catch{}state.articleScanTimer=setTimeout(tick,220);};tick();}catch(error){console.error(error);setMessage($("articleScanMessage"),t("cameraUnavailable"));}
 }
@@ -451,6 +461,10 @@ function validateEan(){
 }
 
 async function startCamera(){
+  if(nativeBarcodeScanner()){
+    try{const value=await scanNativeBarcode();if(value){$("scannedEan").value=cleanEan(value);validateEan();}}catch(error){console.error(error);setMessage($("scanMessage"),t("cameraUnavailable"));}
+    return;
+  }
   if(!("BarcodeDetector" in window)||!navigator.mediaDevices?.getUserMedia){ setMessage($("scanMessage"),t("cameraUnavailable")); return; }
   try{
     const formats=await BarcodeDetector.getSupportedFormats(); const wanted=["ean_13","ean_8","upc_a","upc_e","code_128"].filter(x=>formats.includes(x));
@@ -461,6 +475,11 @@ async function startCamera(){
   }catch(error){ console.error(error); setMessage($("scanMessage"),t("cameraUnavailable")); await stopCamera(); }
 }
 async function stopCamera(){ clearTimeout(state.scanTimer); state.scanTimer=null; state.stream?.getTracks().forEach(track=>track.stop()); state.stream=null; const video=$("camera"); video.pause(); video.srcObject=null; video.style.display="none"; }
+
+async function scanContainerBarcode(){
+  if(!nativeBarcodeScanner()){showToast(t("cameraUnavailable"));$("containerNumber").focus();return;}
+  try{const value=await scanNativeBarcode();if(value){$("containerNumber").value=cleanId(value);await findContainer();}}catch(error){console.error(error);showToast(t("cameraUnavailable"));}
+}
 
 async function submitPick(event){
   event.preventDefault(); if(!validateEan())return;
@@ -558,7 +577,7 @@ $("loginForm").addEventListener("submit",login); $("pendingLogout").addEventList
 $("menuButton").addEventListener("click",()=>openDrawer(true)); $("drawerShade").addEventListener("click",()=>openDrawer(false)); $("backButton").addEventListener("click",()=>showPage(state.page.startsWith("article")?"article":"containers",false));
 document.querySelectorAll(".nav-item[data-page]").forEach(button=>button.addEventListener("click",()=>showPage(button.dataset.page)));
 $("language").addEventListener("change",event=>{state.lang=event.target.value;localStorage.setItem("tirescan.lang",state.lang);applyLanguage();});
-$("findContainer").addEventListener("click",findContainer); $("containerNumber").addEventListener("keydown",event=>{if(event.key==="Enter")findContainer();}); $("scanContainer").addEventListener("click",()=>{showToast(t("cameraUnavailable"));$("containerNumber").focus();});
+$("findContainer").addEventListener("click",findContainer); $("containerNumber").addEventListener("keydown",event=>{if(event.key==="Enter")findContainer();}); $("scanContainer").addEventListener("click",scanContainerBarcode);
 $("confirmContainer").addEventListener("click",confirmSearchedContainer); $("refreshMine").addEventListener("click",loadMyContainers); $("finishContainer").addEventListener("click",requestFinalize);
 $("scannedEan").addEventListener("input",validateEan); $("startCamera").addEventListener("click",startCamera); $("closeScanner").addEventListener("click",closeScanner); $("pickForm").addEventListener("submit",submitPick);
 $("confirmNo").addEventListener("click",closeConfirm); $("confirmYes").addEventListener("click",async()=>{const action=state.confirmAction;closeConfirm();if(action)await action();});
@@ -582,4 +601,4 @@ if(demoMode){
   onAuthStateChanged(auth,hydrateSession);
 }
 applyLanguage();
-if("serviceWorker" in navigator) window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(console.warn));
+if("serviceWorker" in navigator && !window.Capacitor?.isNativePlatform?.()) window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(console.warn));
