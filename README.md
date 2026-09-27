@@ -26,7 +26,14 @@ npm run mobile:sync
 npm run mobile:open
 ```
 
-The last command is only for developers who have a Mac. On Windows, push the repository to GitHub and use the included `codemagic.yaml` workflow. Connect an active Apple Developer Program account and the repository in Codemagic; the workflow builds, signs, and sends the application to TestFlight. Add both iPhone owners as TestFlight testers.
+The last command is only for developers who have a Mac. A free Windows-only test route is included in `.github/workflows/ios-unsigned.yml`:
+
+1. Push the repository to GitHub and run **Actions → Build free iOS IPA → Run workflow**.
+2. Download the `Lager-Scan-System-unsigned` artifact and extract the IPA.
+3. Install AltServer on Windows and AltStore on both iPhones.
+4. Open the IPA in AltStore on each phone.
+
+Apple's free Personal Team profiles expire after seven days. Keep AltServer running on the same Windows computer and Wi-Fi so AltStore can refresh the app, or refresh it manually before expiration. TestFlight requires the paid Apple Developer Program and is not used by this workflow.
 
 After every web-code change run `npm run mobile:sync` before building the next iOS version.
 
