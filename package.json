@@ -12,10 +12,13 @@
   "dependencies": {
     "@capacitor/barcode-scanner": "^3.1.2",
     "@capacitor/core": "^8.0.0",
-    "@capacitor/ios": "^8.0.0"
+    "@capacitor/ios": "^8.0.0",
+    "firebase": "^12.19.0"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.0.0"
+    "@capacitor/cli": "^8.0.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "rollup": "^4.63.5"
   },
   "engines": {
     "node": ">=22.0.0"

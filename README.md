@@ -20,6 +20,8 @@ The interface defaults to German and also supports Russian and English. The exis
 
 The `ios` folder is a Capacitor iOS application named **Lager Scan System**. The Firebase web client is bundled into the native application, so it opens from the iPhone Home Screen without Safari.
 
+The native bundle contains the complete interface and Firebase client libraries. After signing in online once, press **Synchronisieren** to download the tire catalog plus available and assigned containers. Article search, container picking, EAN scanning, stock-location changes and completion then work without internet. Changes remain in the device queue and are uploaded only when the user explicitly synchronizes again; the other device receives them on its next synchronization.
+
 ```sh
 npm install
 npm run mobile:sync

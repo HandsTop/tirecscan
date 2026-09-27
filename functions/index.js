@@ -194,6 +194,31 @@ exports.searchArticles = callable.onCall(async (data, context) => {
   return { articles, truncated: tireSearchCache.articles.length === 500 };
 });
 
+exports.getOfflineSnapshot = callable.onCall(async (_data, context) => {
+  const profile = await activeProfile(context);
+  const [tiresSnap, openContainersSnap, assignedContainersSnap] = await Promise.all([
+    db.collection("tires").limit(5000).get(),
+    db.collection("containers").where("status", "==", "open").limit(200).get(),
+    db.collection("containers").where("assignedTo", "==", profile.uid).limit(200).get()
+  ]);
+  const containerDocs = new Map();
+  openContainersSnap.docs.forEach(doc => containerDocs.set(doc.id, doc));
+  assignedContainersSnap.docs.forEach(doc => { if (doc.data().status !== "completed") containerDocs.set(doc.id, doc); });
+  const containers = await Promise.all([...containerDocs.values()].map(async containerDoc => {
+    const itemsSnap = await containerDoc.ref.collection("items").get();
+    return {
+      container: { id:containerDoc.id, ...containerDoc.data() },
+      items: itemsSnap.docs.map(itemDoc => ({ id:itemDoc.id, ...itemDoc.data() }))
+    };
+  }));
+  return {
+    articles: tiresSnap.docs.map(doc => tirePublic(doc.id, doc.data())),
+    containers,
+    truncated: tiresSnap.size === 5000,
+    syncedAt: new Date().toISOString()
+  };
+});
+
 exports.resolveContainerArticles = callable.onCall(async (data, context) => {
   await activeProfile(context); if (!isAdmin(context)) fail("permission-denied", "Administratorrechte erforderlich.");
   const articleNumbers = Array.isArray(data?.articleNumbers) ? data.articleNumbers.map(value => text(value, 40)).filter(Boolean) : [];

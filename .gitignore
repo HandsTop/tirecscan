@@ -3,6 +3,7 @@ firebase-debug.log
 functions/node_modules/
 node_modules/
 www/
+capacitor-app-entry.js
 ios/App/Pods/
 ios/App/DerivedData/
 ios/App/App.xcodeproj/xcuserdata/

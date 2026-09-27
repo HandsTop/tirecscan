@@ -23,7 +23,8 @@ const call = {
   saveTireLocation: httpsCallable(functions, "saveTireLocation"),
   importTires: httpsCallable(functions, "importTires"),
   importContainer: httpsCallable(functions, "importContainer"),
-  setUserAccess: httpsCallable(functions, "setUserAccess")
+  setUserAccess: httpsCallable(functions, "setUserAccess"),
+  getOfflineSnapshot: httpsCallable(functions, "getOfflineSnapshot")
 };
 
 const TEXT = {
@@ -82,7 +83,7 @@ const TEXT = {
 
 const demoMode = ["127.0.0.1","localhost"].includes(location.hostname) && new URLSearchParams(location.search).has("demo");
 const savedLanguage=localStorage.getItem("tirescan.lang");
-const state = { lang:savedLanguage==="lv"?"en":(TEXT[savedLanguage]?savedLanguage:"de"), user:null, profile:null, isAdmin:false, page:"containers", previousPage:"containers", searchContainer:null, container:null, items:[], selected:null, stream:null, scanTimer:null, confirmAction:null, articles:[], selectedArticle:null, detailCache:new Map(), articleStream:null, articleScanTimer:null, pendingOperations:[], containerCache:{}, containerDraftItems:[], syncing:false };
+const state = { lang:savedLanguage==="lv"?"en":(TEXT[savedLanguage]?savedLanguage:"de"), user:null, profile:null, isAdmin:false, page:"containers", previousPage:"containers", searchContainer:null, container:null, items:[], selected:null, stream:null, scanTimer:null, confirmAction:null, articles:[], articleCache:[], selectedArticle:null, detailCache:new Map(), detailStore:{}, articleStream:null, articleScanTimer:null, pendingOperations:[], containerCache:{}, containerDraftItems:[], syncing:false };
 const t = (key) => TEXT[state.lang]?.[key] || TEXT.de[key] || key;
 const cleanId = (value) => String(value || "").trim().replace(/[^A-Za-z0-9_-]/g, "").slice(0,32);
 const cleanEan = (value) => String(value || "").replace(/\D/g, "").slice(0,14);
@@ -105,9 +106,11 @@ function storageKey(name){return `tirescan.${name}.${state.user?.uid||"anonymous
 function loadDeviceState(){
   try{state.pendingOperations=JSON.parse(localStorage.getItem(storageKey("queue"))||"[]");}catch{state.pendingOperations=[];}
   try{state.containerCache=JSON.parse(localStorage.getItem(storageKey("containers"))||"{}");}catch{state.containerCache={};}
+  try{state.articleCache=JSON.parse(localStorage.getItem(storageKey("articles"))||"[]");}catch{state.articleCache=[];}
+  try{state.detailStore=JSON.parse(localStorage.getItem(storageKey("articleDetails"))||"{}");}catch{state.detailStore={};}
   updateSyncUi();
 }
-function persistDeviceState(){localStorage.setItem(storageKey("queue"),JSON.stringify(state.pendingOperations));localStorage.setItem(storageKey("containers"),JSON.stringify(state.containerCache));updateSyncUi();}
+function persistDeviceState(){try{localStorage.setItem(storageKey("queue"),JSON.stringify(state.pendingOperations));localStorage.setItem(storageKey("containers"),JSON.stringify(state.containerCache));localStorage.setItem(storageKey("articles"),JSON.stringify(state.articleCache));localStorage.setItem(storageKey("articleDetails"),JSON.stringify(state.detailStore));}catch(error){console.error("Local cache could not be saved",error);}updateSyncUi();}
 function enqueueOperation(type,payload){state.pendingOperations.push({id:crypto.randomUUID?.()||`${Date.now()}-${Math.random()}`,type,payload,createdAt:new Date().toISOString()});persistDeviceState();}
 function cacheContainer(container,items){state.containerCache[container.id]={container,items};persistDeviceState();}
 function updateSyncUi(){
@@ -122,6 +125,7 @@ async function syncNow(){
     if(demoMode){state.pendingOperations=[];}else{
       while(state.pendingOperations.length){const operation=state.pendingOperations[0];if(!call[operation.type])throw new Error(`Unbekannte Aktion: ${operation.type}`);await call[operation.type](operation.payload);state.pendingOperations.shift();persistDeviceState();}
     }
+    if(!demoMode){const response=await call.getOfflineSnapshot({});const snapshot=response.data||{};state.articleCache=snapshot.articles||[];(snapshot.containers||[]).forEach(bundle=>{if(bundle?.container?.id)state.containerCache[bundle.container.id]=bundle;});persistDeviceState();}
     localStorage.setItem(storageKey("lastSync"),new Date().toISOString());state.detailCache.clear();await loadMyContainers();
     if(state.page==="article"&&normalizeArticleSearch($("articleQuery").value))await searchArticles();
     showToast(t("syncDone"));$("moreMenu").classList.add("hidden");
@@ -177,9 +181,13 @@ async function hydrateSession(user){
     if(!state.profile?.active && !state.isAdmin){ $("loginView").classList.add("hidden"); $("app").classList.add("hidden"); $("pendingView").classList.remove("hidden"); return; }
     const displayName=state.profile?.displayName || user.email;
     $("identity").textContent=displayName; $("drawerUser").textContent=user.email; $("adminNav").classList.toggle("hidden",!state.isAdmin);
-    loadDeviceState();
+    localStorage.setItem(storageKey("session"),JSON.stringify({profile:state.profile,isAdmin:state.isAdmin,email:user.email}));loadDeviceState();
     $("loginView").classList.add("hidden"); $("pendingView").classList.add("hidden"); $("app").classList.remove("hidden"); showPage("containers");
-  }catch(error){ console.error(error); setMessage($("loginMessage"),displayError(error)); await signOut(auth); }
+  }catch(error){
+    console.error(error);let cached=null;try{cached=JSON.parse(localStorage.getItem(storageKey("session"))||"null");}catch{}
+    if(cached?.profile?.active||cached?.isAdmin){state.profile=cached.profile;state.isAdmin=cached.isAdmin===true;$("identity").textContent=state.profile?.displayName||cached.email||user.email;$("drawerUser").textContent=cached.email||user.email;$("adminNav").classList.toggle("hidden",!state.isAdmin);loadDeviceState();$("loginView").classList.add("hidden");$("pendingView").classList.add("hidden");$("app").classList.remove("hidden");showPage("containers");showToast(state.lang==="ru"?"Офлайн-режим":state.lang==="en"?"Offline mode":"Offline-Modus");return;}
+    setMessage($("loginMessage"),displayError(error));
+  }
 }
 
 async function getContainer(id){
@@ -192,6 +200,7 @@ async function findContainer(){
   const id=cleanId($("containerNumber").value); setMessage($("containerMessage"),""); $("containerResult").replaceChildren(); $("confirmContainer").classList.add("hidden"); state.searchContainer=null;
   if(!id){ setMessage($("containerMessage"),t("invalidContainer")); return; }
   try{
+    const direct=state.containerCache[id]||Object.values(state.containerCache).find(bundle=>cleanId(bundle?.container?.number)===id);if(direct?.container){state.searchContainer=direct.container;$("containerNumber").value=state.searchContainer.number||state.searchContainer.id;renderSearchResult();return;}
     const snap=await getContainer(id);
     if(!snap.exists()){ setMessage($("containerMessage"),t("notFound")); return; }
     state.searchContainer=state.containerCache[snap.id]?.container||{id:snap.id,...snap.data()}; $("containerNumber").value=state.searchContainer.number||state.searchContainer.id; renderSearchResult();
@@ -239,9 +248,9 @@ async function confirmSearchedContainer(){
 async function loadMyContainers(){
   const target=$("myContainers"); target.replaceChildren();
   try{
-    let server=[];if(!demoMode){const snap=await getDocs(query(collection(db,"containers"),where("assignedTo","==",state.user.uid)));server=snap.docs.map(d=>({id:d.id,...d.data()}));}
+    let server=[];if(!demoMode){try{const snap=await getDocs(query(collection(db,"containers"),where("assignedTo","==",state.user.uid)));server=snap.docs.map(d=>({id:d.id,...d.data()}));}catch(error){console.warn("Using offline container cache",error);}}
     const merged=new Map(server.map(container=>[container.id,container]));Object.values(state.containerCache).forEach(bundle=>merged.set(bundle.container.id,bundle.container));
-    const list=[...merged.values()].filter(container=>container.status!=="completed").sort((a,b)=>(dateFromValue(b.updatedAt)?.valueOf()||0)-(dateFromValue(a.updatedAt)?.valueOf()||0));
+    const list=[...merged.values()].filter(container=>container.status!=="completed"&&container.assignedTo===state.user.uid).sort((a,b)=>(dateFromValue(b.updatedAt)?.valueOf()||0)-(dateFromValue(a.updatedAt)?.valueOf()||0));
     if(!list.length) target.append(node("p","muted",t("notFound")));
     list.forEach(c=>{
       const card=node("button","my-container-card");
@@ -326,7 +335,8 @@ async function searchArticles(){
   try{
     let articles;
     if(demoMode)articles=DEMO_ARTICLES.filter(article=>articleMatches(article,raw,warehouseMode));
-    else { const response=await call.searchArticles({query:raw,warehouseMode}); articles=response.data?.articles||[]; }
+    else if(state.articleCache.length)articles=state.articleCache.filter(article=>articleMatches(article,raw,warehouseMode)).slice(0,100);
+    else { const response=await call.searchArticles({query:raw,warehouseMode}); articles=response.data?.articles||[];articles.forEach(article=>{const index=state.articleCache.findIndex(value=>value.ean===article.ean);if(index>=0)state.articleCache[index]=article;else state.articleCache.push(article);});persistDeviceState(); }
     state.articles=applyPendingArticleChanges(articles);setMessage($("articleMessage"),"");renderArticleResults();
   }catch(error){console.error(error);setMessage($("articleMessage"),displayError(error));}
   finally{searchButton.disabled=false;}
@@ -369,7 +379,7 @@ function closeSiteStock(){$("siteStockModal").classList.add("hidden");}
 async function getArticleDetails(article,view){
   const key=`${article.ean}:${view}`;if(state.detailCache.has(key))return state.detailCache.get(key);
   let details;if(demoMode)details={...article,...(view==="history"?{history:demoHistory[article.ean]||[]}:{arrivals:demoArrivals[article.ean]||[]})};
-  else {const response=await call.getTireDetails({ean:article.ean,include:view});details=response.data;}
+  else {try{const response=await call.getTireDetails({ean:article.ean,include:view});details=response.data;state.detailStore[key]=details;persistDeviceState();}catch(error){if(state.detailStore[key])details=state.detailStore[key];else throw error;}}
   if(view==="history"&&!demoMode){const pending=state.pendingOperations.filter(operation=>operation.type==="saveTireLocation"&&operation.payload.ean===article.ean).map(operation=>({from:operation.payload.originalCode||"—",to:operation.payload.remove?"—":operation.payload.code,user:state.profile?.displayName||state.user?.email||"—",at:operation.createdAt}));details={...details,history:[...pending,...(details.history||[])]};}
   state.detailCache.set(key,details);return details;
 }
